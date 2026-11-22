@@ -1,9 +1,39 @@
 #!/usr/bin/env python
-"""Analyze ice_secp256k1.dll PE file structure."""
+"""Analyze ice_secp256k1.dll PE file structure.
+
+Upstream Repository: https://github.com/iceland2k14/secp256k1
+Para utilizar este módulo, obtenha a biblioteca compilada a partir do repositório
+oficial acima e coloque-a no diretório do projeto ou em System32 / PATH do sistema.
+"""
+import os
 import struct
 import sys
 
-dll_path = r'C:\Users\Qb\Desktop\sequenciadores\lp\mcp\ice_secp256k1.dll'
+UPSTREAM_REPO = "https://github.com/iceland2k14/secp256k1"
+
+def resolve_dll_path():
+    """Resolve o caminho da DLL dinamicamente sem caminhos pessoais hardcoded."""
+    candidates = [
+        os.environ.get("ICE_DLL_PATH", ""),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "ice_secp256k1.dll"),
+        os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "ice_secp256k1.dll"),
+        "ice_secp256k1.dll"
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    return None
+
+dll_path = resolve_dll_path()
+
+if not dll_path:
+    print(f"[AVISO] DLL 'ice_secp256k1.dll' não encontrada localmente.")
+    print(f"Para baixar ou compilar a biblioteca a partir do repositório oficial, acesse:")
+    print(f"-> {UPSTREAM_REPO}")
+    print("Após o download, coloque o arquivo na raiz do projeto ou em C:\\Windows\\System32.")
+    sys.exit(0)
+
+print(f"Analisando DLL em: {dll_path}")
 
 try:
     with open(dll_path, 'rb') as f:

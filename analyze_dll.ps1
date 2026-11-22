@@ -1,4 +1,31 @@
-$dllPath = "C:\Users\Qb\Desktop\sequenciadores\lp\mcp\ice_secp256k1.dll"
+# Script de analise PE de DLL
+# Repositorio oficial Upstream: https://github.com/iceland2k14/secp256k1
+
+$upstreamRepo = "https://github.com/iceland2k14/secp256k1"
+$candidates = @(
+    $env:ICE_DLL_PATH,
+    "$PSScriptRoot\ice_secp256k1.dll",
+    "$env:SystemRoot\System32\ice_secp256k1.dll",
+    ".\ice_secp256k1.dll"
+)
+
+$dllPath = $null
+foreach ($path in $candidates) {
+    if ($path -and (Test-Path $path)) {
+        $dllPath = (Resolve-Path $path).Path
+        break
+    }
+}
+
+if (-not $dllPath) {
+    Write-Warning "Arquivo 'ice_secp256k1.dll' nao encontrado localmente."
+    Write-Host "Obtenha a biblioteca a partir do repositorio oficial:"
+    Write-Host "-> $upstreamRepo"
+    Write-Host "Coloque o arquivo na pasta do projeto ou em $env:SystemRoot\System32"
+    exit 0
+}
+
+Write-Host "Analisando DLL em: $dllPath"
 $raw = [system.io.file]::ReadAllBytes($dllPath)
 
 Write-Output "=== BASIC INFO ==="

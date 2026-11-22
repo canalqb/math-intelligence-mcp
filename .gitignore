@@ -1,50 +1,69 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ==========================================
+# MATHFORGE MCP - REGRAS DE EXCLUSÃO GIT (.gitignore)
+# ==========================================
 
-# dependency-based
-/node_modules/
-/pnpm-lockfile.lock
-/yarn-lockfile.lock
-/pnpm-debug.log
-
-# diagnostic
-/coverage/
-
-# misc
-/.DS_Store
-/.python_history
-
-# poetry
-.venv
+# 1. SEGREDOS E VARIÁVEIS DE AMBIENTE (NUNCA SINCRONIZAR)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.priv
+*.cert
+*.secrets
 
-# docker
-.dockerinit
+# 2. DEPENDÊNCIAS
+node_modules/
+pnpm-lockfile.lock
+yarn-lockfile.lock
+pnpm-debug.log
+.venv/
+env/
+venv/
+ENV/
 
-# misc
-*.orig
-*~
-#*#
+# 3. PYTHON CACHES E ARTEFATOS
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
 
-# binary
+# 4. BINÁRIOS E EXECUTÁVEIS LOCAIS
 *.dll
 *.exe
 *.so
 *.dylib
+*.obj
+*.o
+*.a
+*.lib
 
-# rust
-/target
-/.cargo
+# 5. SCRIPTS E ARQUIVOS TEMPORÁRIOS / LOGS
+*.log
+*.tmp
+*.bak
+*.orig
+*~
+#*#
+diff_*.txt
+*.dump
 
-# python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# typeScript
+# 6. RUST & TYPESCRIPT BUILDS
+target/
+.cargo/
+dist/
 *.tsbuildinfo
 .tspkg
 
-# MCP specific
+# 7. SISTEMA OPERACIONAL & IDES
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
 .mcpe-override
-```

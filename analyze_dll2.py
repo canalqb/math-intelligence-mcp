@@ -1,9 +1,37 @@
 #!/usr/bin/env python
-"""Deep analysis of ice_secp256k1.dll - focus on secp256k1 strings."""
+"""Deep analysis of ice_secp256k1.dll - focus on secp256k1 strings.
+
+Upstream Repository: https://github.com/iceland2k14/secp256k1
+"""
+import os
 import struct
 import sys
 
-dll_path = r'C:\Users\Qb\Desktop\sequenciadores\lp\mcp\ice_secp256k1.dll'
+UPSTREAM_REPO = "https://github.com/iceland2k14/secp256k1"
+
+def resolve_dll_path():
+    """Resolve o caminho da DLL sem dependência de pastas pessoais."""
+    candidates = [
+        os.environ.get("ICE_DLL_PATH", ""),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "ice_secp256k1.dll"),
+        os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "ice_secp256k1.dll"),
+        "ice_secp256k1.dll"
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    return None
+
+dll_path = resolve_dll_path()
+
+if not dll_path:
+    print(f"[AVISO] DLL 'ice_secp256k1.dll' não encontrada.")
+    print(f"Obtenha o arquivo compilado a partir do repositório oficial:")
+    print(f"-> {UPSTREAM_REPO}")
+    print("Coloque o arquivo na pasta do projeto ou em System32.")
+    sys.exit(0)
+
+print(f"Analisando DLL em: {dll_path}")
 
 with open(dll_path, 'rb') as f:
     data = f.read()
