@@ -22,7 +22,15 @@ PYTHON_DIR = os.path.join(BASE_DIR, "python")
 if PYTHON_DIR not in sys.path:
     sys.path.insert(0, PYTHON_DIR)
 
-from mimcp_server import MCPServer
+# Importação segura do MCPServer como pacote
+try:
+    from python.mimcp_server import MCPServer
+except ImportError:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("mimcp_pkg.mimcp_server", os.path.join(PYTHON_DIR, "mimcp_server.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    MCPServer = mod.MCPServer
 
 # Criação da instância FastAPI
 app = FastAPI(
@@ -182,4 +190,5 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("HOST", "0.0.0.0")
-    uvicorn.run("mimcp_server:app", host=host, port=port, reload=False)
+    print(f"Iniciando MathForge MCP na porta {port}...")
+    uvicorn.run(app, host=host, port=port)
