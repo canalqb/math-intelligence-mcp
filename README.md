@@ -147,7 +147,95 @@ npm run dev
 
 ---
 
-API JSON-RPC 2.0
+## 🌐 Conexão de Agentes de IA (Produção no Render)
+
+O servidor MCP está publicado e pronto para conexão de qualquer agente de IA (Claude, GPT-4o, Gemini, Cursor, Antigravity, Kimi, DeepSeek) através da URL pública:
+
+> **URL de Produção:** `https://math-intelligence-mcp.onrender.com`  
+> **Endpoint MCP / JSON-RPC:** `https://math-intelligence-mcp.onrender.com/mcp`  
+> **Health Check:** `https://math-intelligence-mcp.onrender.com/health`  
+> **Catálogo de Tools:** `https://math-intelligence-mcp.onrender.com/mcp/tools`
+
+### 1. Configuração para Claude Desktop / Antigravity / Cursor
+
+Para conectar seu agente de IA local ao MCP remoto na nuvem sem precisar rodar nada no seu computador, adicione ao seu arquivo de configuração MCP (`claude_desktop_config.json` ou configurações de MCP do editor):
+
+```json
+{
+  "mcpServers": {
+    "math-intelligence": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://math-intelligence-mcp.onrender.com/mcp"
+      ]
+    }
+  }
+}
+```
+
+### 2. Chamada Direta via Agentes Python (LangChain, CrewAI, Autônomos)
+
+```python
+import requests
+
+MCP_URL = "https://math-intelligence-mcp.onrender.com/mcp"
+
+def call_math_mcp(tool_name: str, arguments: dict):
+    """Executa qualquer ferramenta do Math Intelligence MCP."""
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments
+        }
+    }
+    response = requests.post(MCP_URL, json=payload, timeout=30)
+    return response.json()
+
+# Exemplo: avaliar expressão com alta precisão
+res = call_math_mcp("math_evaluate", {"expression": "sqrt(144) + sin(pi/2) * 10"})
+print(res)
+```
+
+### 3. Chamada via HTTP / JSON-RPC 2.0 (cURL)
+
+```bash
+curl -X POST https://math-intelligence-mcp.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "math_evaluate",
+      "arguments": {
+        "expression": "2 + 2 * 3"
+      }
+    }
+  }'
+```
+
+Resposta:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "success": true,
+    "data": 8.0,
+    "expression": "2 + 2 * 3",
+    "evaluated_at": "2026-11-22T13:23:23Z"
+  },
+  "id": 1
+}
+```
+
+---
+
+API JSON-RPC 2.0 (Referência Local)
 
 Endpoint
 
