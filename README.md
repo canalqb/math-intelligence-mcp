@@ -2,9 +2,11 @@
 
 Visao Geral
 
-Math Intelligence MCP (Math Intelligence Multi-Container Platform) e um framework para proporcionar capacidades matematicas avancadas a agentes de IA, com foco em criptografia de curva secp256k1, calculos matematicos gerais e integracao via protocolo JSON-RPC 2.0.
+Math Intelligence MCP (MathForge) é um ecossistema matemático e criptográfico de alta precisão desenhado para ser **100% universal e poliglota (compatível com todas as linguagens de programação)** e acessível para qualquer modelo de agente de IA.
 
-Este projeto reimplementa as funcoes da biblioteca ice_secp256k1.dll em Rust puro, permitindo operacao multiplataforma (Windows/Linux/macOS) sem dependencia de binarios proprietarios.
+O projeto elimina o isolamento e as dependências proprietárias do Windows da biblioteca `ice_secp256k1.dll`, fornecendo uma arquitetura aberta baseada em:
+1. **Interface de Protocolo Universal (MCP / JSON-RPC 2.0):** Qualquer linguagem ou agente (Python, C#, TypeScript, Rust, Go, Java, PHP, C++) conecta-se de forma transparente via rede ou STDIO.
+2. **Núcleo de Interoperabilidade Binária C-ABI (`c_api.h`):** Para quem necessita de performance nativa máxima em memória, o motor disponibiliza bindings universais C-ABI diretamente compatíveis com FFI, P/Invoke, cgo e bindings nativos em qualquer stack tecnológica.
 
 Status Atual
 
@@ -20,7 +22,7 @@ TL;DR
 3 bullets resumindo o projeto:
 
 1. Framework MCP para agentes IA com 12 tools matematicas (P0-P2) via JSON-RPC 2.0
-2. Rust reimplementacao da ice_secp256k1.dll - multiplataforma, MIT license, sem dependencia de binarios proprietarios
+2. Interoperabilidade Total para Todas as Linguagens: acesso via MCP Protocol ou C-ABI nativa em Python, C#, Rust, TypeScript, Go, C/C++ e Java sem dependência de binários proprietários restritos ao Windows.
 3. Deploy no Render ativo - Web Service integrado ao GitHub canalqb/math-intelligence-mcp
 
 ---
@@ -201,7 +203,55 @@ res = call_math_mcp("math_evaluate", {"expression": "sqrt(144) + sin(pi/2) * 10"
 print(res)
 ```
 
-### 3. Chamada via HTTP / JSON-RPC 2.0 (cURL)
+### 3. Chamada via TypeScript / JavaScript (Node.js, Bun, Deno ou Browser)
+
+```typescript
+const response = await fetch("https://math-intelligence-mcp.onrender.com/mcp", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: {
+      name: "math_evaluate",
+      arguments: { expression: "sqrt(256) * 2 + 10" }
+    }
+  })
+});
+const data = await response.json();
+console.log("Resultado:", data.result);
+```
+
+### 4. Chamada via C# (.NET / Unity)
+
+```csharp
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+class Program {
+    static async Task Main() {
+        using var client = new HttpClient();
+        var payload = new {
+            jsonrpc = "2.0",
+            id = 1,
+            method = "tools/call",
+            params = new {
+                name = "math_evaluate",
+                arguments = new { expression = "sin(pi/2) + cos(0)" }
+            }
+        };
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        var res = await client.PostAsync("https://math-intelligence-mcp.onrender.com/mcp", content);
+        Console.WriteLine(await res.Content.ReadAsStringAsync());
+    }
+}
+```
+
+### 5. Chamada via cURL (Qualquer Terminal / Shell)
 
 ```bash
 curl -X POST https://math-intelligence-mcp.onrender.com/mcp \

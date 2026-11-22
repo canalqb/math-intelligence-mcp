@@ -12,10 +12,10 @@ Generated: 15 de janeiro de 2024
 Perguntas Frequentes (FAQ)
 
 **Q: Por que analisar a DLL `ice_secp256k1.dll`?**  
-A: O Math Intelligence MCP reimplementa as funcoes desta DLL em Rust puro para operacao multiplataforma (Windows/Linux/macOS) sem dependencia de binarios proprietarios. Esta investigacao documenta as propriedades do binario original.
+A: O Math Intelligence MCP visa fornecer as operações desta DLL de forma universal e multiplataforma (Windows/Linux/macOS) para todas as linguagens (Python, C#, C++, Rust, Go, TypeScript) através de uma C-ABI padronizada e do protocolo MCP, eliminando a dependência exclusiva de binários proprietários do Windows.
 
 **Q: A DLL original e necessaria?**  
-A: Nao. O objetivo e reimplementar toda a funcionalidade em Rust, removendo a dependencia do Windows-only `ice_secp256k1.dll`. A analise atual serve de referencia para garantir que a reimplementacao corresponde ao comportamento original.
+A: Não em produção. O objetivo é desacoplar a funcionalidade através de backends abertos e bibliotecas oficiais auditáveis com interface C estável para todas as linguagens. Esta análise serve de baseline para comparar comportamento e integridade.
 
 **Q: Que informacoes esta analise fornece?**  
 A: Esta reportagem identifica as propriedades binarias (tamanho, hash, arquitetura, metadados) da DLL original, servindo de baseline para comparar a reimplementacao em Rust. Quando o arquivo esta disponivel, pode-se calcular hashes completos e verificar integridade.
