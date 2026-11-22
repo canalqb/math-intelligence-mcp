@@ -5,8 +5,7 @@ Resolve equações simbolicamente usando abordagens algebraicas.
 """
 
 from typing import Dict, Any, List, Optional
-import re
-import cmath
+import sympy as sp
 
 
 def solve_symbolically(equation: str, variable: str = "x") -> Dict[str, Any]:
@@ -35,14 +34,19 @@ def solve_symbolically(equation: str, variable: str = "x") -> Dict[str, Any]:
                 "equation": equation
             }
 
-        lhs, rhs = [s.strip() for s in clean_eq.split("=", 1)]
+        lhs_str, rhs_str = [s.strip() for s in clean_eq.split("=", 1)]
 
-        # Mover tudo para um lado: lhs - rhs = 0
-        # Para simplificar, substituímos rhs por 0 e ajustamos lhs
-        adjusted_lhs = _move_rhs_to_lhs(lhs, rhs)
+        # Usar sympy para mover tudo para um lado: lhs - rhs = 0
+        x = sp.Symbol(variable)
+        lhs_expr = sp.sympify(lhs_str)
+        rhs_expr = sp.sympify(rhs_str)
+        
+        # Equação ajustada: lhs - rhs = 0
+        adjusted_expr = sp.simplify(lhs_expr - rhs_expr)
+        adjusted_lhs = str(adjusted_expr)
 
         # Determinar grau da equação
-        degree = _determine_degree(adjusted_lhs, variable)
+        degree = _determine_degree(adjusted_expr, variable)
 
         result: Dict[str, Any] = {
             "success": True,
@@ -54,16 +58,22 @@ def solve_symbolically(equation: str, variable: str = "x") -> Dict[str, Any]:
 
         if degree == 1:
             # Equação do 1º grau: ax + b = 0
-            result.update(_solve_linear(adjusted_lhs, variable))
+            result.update(_solve_linear(adjusted_expr, variable))
         elif degree == 2:
             # Equação do 2º grau: ax² + bx + c = 0
-            result.update(_solve_quadratic(adjusted_lhs, variable))
+            result.update(_solve_quadratic(adjusted_expr, variable))
         else:
             result["success"] = False
             result["error"] = f"Grau da equação {degree} não suportado ainda"
 
         return result
 
+    except sp.SympyError as e:
+        return {
+            "success": False,
+            "error": f"Erro de sintaxe simbólica: {str(e)}",
+            "equation": equation
+        }
     except Exception as e:
         return {
             "success": False,
@@ -72,62 +82,27 @@ def solve_symbolically(equation: str, variable: str = "x") -> Dict[str, Any]:
         }
 
 
-def _move_rhs_to_lhs(lhs: str, rhs: str) -> str:
-    """Move termos do RHS para LHS mudando os sinais."""
-    # Remover 'x' do RHS para mudar coeficientes
-    # Exemplo: se rhs = "3x", vira "-3x" no LHS
-    rhs_terms = re.findall(r'([+-]?\d*\*?x?\^?\d*)', rhs)
-
-    adjusted = lhs
-    for term in rhs_terms:
-        sign = term[0] if term.startswith(('+', '-')) else '+'
-        coeff_part = term.lstrip('+-')
-
-        # Substituir no LHS com sinal invertido
-        if sign == '+':
-            adjusted = adjusted.replace('+ ' + coeff_part, f'- {coeff_part}')
-            adjusted = adjusted.replace('+' + coeff_part, f'-{coeff_part}')
-        else:
-            adjusted = adjusted.replace('- ' + coeff_part, f'+ {coeff_part}')
-            adjusted = adjusted.replace('-' + coeff_part, f'+{coeff_part}')
-
-    return adjusted
-
-
-def _determine_degree(expression: str, variable: str = "x") -> int:
+def _determine_degree(expression: sp.Expr, variable: str = "x") -> int:
     """Determina o grau máximo da equação."""
-    # Procurar por x² ou x**2
-    if re.search(r'x\^2|\*\*2', expression):
-        return 2
-    # Procurar apenas x (não elevado)
-    if re.search(r'(?<!^|\*)x(?!^|\*)', expression):
-        # Verificar se tem x² também
-        if not re.search(r'x\^2|\*\*2', expression):
-            return 1
-    return 0
+    x = sp.Symbol(variable)
+    try:
+        return sp.Poly(expression, x).degree()
+    except Exception:
+        return 0
 
 
-def _solve_linear(expression: str, variable: str = "x") -> Dict[str, Any]:
+def _solve_linear(expression: sp.Expr, variable: str = "x") -> Dict[str, Any]:
     """Resolve equação do 1º grau ax + b = 0."""
     try:
-        # Extrair coeficiente de x
-        x_match = re.search(r'([+-]?\d*\.?\*)?x', expression)
-        if not x_match:
-            return {"success": False, "solution": "Não foi possível encontrar x", "roots": [], "nature": "unknown"}
-
-        coeff_str = x_match.group(1).replace('x', '').strip() or '1'
-        try:
-            a = float(coeff_str.replace('*', ''))
-        except ValueError:
-            a = 1.0
-
-        # Extrair constante livre (termos sem x)
-        const_match = re.search(r'([+-]?\d+)$', expression)
-        const_str = const_match.group(1) if const_match else '0'
-        try:
-            b = float(const_str)
-        except ValueError:
-            b = 0.0
+        x = sp.Symbol(variable)
+        poly = sp.Poly(expression, x)
+        
+        if poly.degree() != 1:
+            return {"success": False, "solution": "Não é equação do 1º grau", "roots": [], "nature": "invalid"}
+        
+        coeffs = poly.all_coeffs()
+        a = float(coeffs[0])
+        b = float(coeffs[1])
 
         if a == 0:
             return {
@@ -137,51 +112,39 @@ def _solve_linear(expression: str, variable: str = "x") -> Dict[str, Any]:
                 "nature": "invalid"
             }
 
-        x = -b / a
+        x_val = -b / a
+        root = complex(x_val)
 
         return {
             "success": True,
-            "solution": f"x = {x}",
-            "roots": [complex(x)],
-            "nature": "unique_real" if x == int(x) and x.imag == 0 else "unique_complex"
+            "solution": f"x = {x_val}",
+            "roots": [root],
+            "nature": "unique_real" if x_val == int(x_val) and root.imag == 0 else "unique_complex"
         }
 
     except Exception as e:
         return {"success": False, "solution": str(e), "roots": [], "nature": "error"}
 
 
-def _solve_quadratic(expression: str, variable: str = "x") -> Dict[str, Any]:
-    """Resolve equação do 2º grau ax² + bx + c = 0 usando fórmula bhaskara."""
+def _solve_quadratic(expression: sp.Expr, variable: str = "x") -> Dict[str, Any]:
+    """Resolve equação do 2º grau ax² + bx + c = 0 usando fórmula de Bhaskara."""
     try:
-        # Extrair coeficientes
+        x = sp.Symbol(variable)
+        poly = sp.Poly(expression, x)
+        
+        if poly.degree() != 2:
+            return {"success": False, "solution": "Não é equação do 2º grau", "roots": [], "nature": "invalid"}
 
-        # Coeficiente a (de x²)
-        a_match = re.search(r'([+-]?\d*\.?\*)?x\^2|([+-]?\d*\.?\*)?x\*\*2', expression)
-        if a_match:
-            a_str = a_match.group(1) or a_match.group(2) or '1' or '1'
-        else:
-            a_str = '1' or '1'
-        a_str = a_str.replace('x^2', '').replace('x**2', '').replace('*', '').strip()
-        if not a_str or a_str in ['+', '-']:
-            a_str = '1' if a_str in ['', '+'] else '-1'
-        a = float(a_str) if a_str else 1.0
-
-        # Coeficiente b (de x)
-        b_match = re.search(r'([+-]?\d*\.?\*)?x(?!\\^2)', expression)
-        b_str = b_match.group(1).replace('x', '').strip() if b_match else '0'
-        if not b_str or b_str in ['+', '-']:
-            b_str = '0'
-        b = float(b_str) if b_str else 0.0
-
-        # Coeficiente c (constante)
-        c_match = re.search(r'([+-]?\d+)$', expression)
-        c_str = c_match.group(1) if c_match else '0'
-        c = float(c_str)
+        coeffs = poly.all_coeffs()
+        a = float(coeffs[0])
+        b = float(coeffs[1])
+        c = float(coeffs[2])
 
         # Calcular delta
         delta = b**2 - 4*a*c
 
-        # Raiz quadrada do delta
+        # Raiz quadrada do delta (pode ser complexo)
+        import cmath
         sqrt_delta = cmath.sqrt(delta)
 
         # Duas raízes
@@ -207,3 +170,67 @@ def _solve_quadratic(expression: str, variable: str = "x") -> Dict[str, Any]:
 
     except Exception as e:
         return {"success": False, "error": str(e), "roots": [], "nature": "error"}
+
+
+def solve_system(equations: List[str], variables: List[str]) -> Dict[str, Any]:
+    """Resolve um sistema de equações lineares.
+    
+    Args:
+        equations: Lista de equações (ex: ["2*x + 3*y = 5", "x - y = 1"])
+        variables: Lista de variáveis (ex: ["x", "y"])
+    
+    Returns:
+        Dict com success, solutions, steps
+    """
+    try:
+        if len(equations) != len(variables):
+            return {
+                "success": False,
+                "error": "Número de equações deve igualar número de variáveis",
+                "equations": equations,
+                "variables": variables
+            }
+
+        sym_vars = [sp.Symbol(v) for v in variables]
+        eq_objects = []
+        
+        for eq_str in equations:
+            if "=" not in eq_str:
+                return {"success": False, "error": f"Equação inválida: {eq_str}", "equations": equations}
+            lhs_str, rhs_str = [s.strip() for s in eq_str.split("=", 1)]
+            lhs_expr = sp.sympify(lhs_str)
+            rhs_expr = sp.sympify(rhs_str)
+            eq_objects.append(sp.Eq(lhs_expr, rhs_expr))
+
+        solution = sp.solve(eq_objects, sym_vars, dict=True)
+        
+        if not solution:
+            return {
+                "success": False,
+                "error": "Sistema sem solução ou indeterminado",
+                "equations": equations,
+                "variables": variables
+            }
+
+        # Formatar soluções
+        formatted_solution = {}
+        for sol in solution:
+            for var, val in sol.items():
+                formatted_solution[str(var)] = complex(val) if isinstance(val, (int, float, complex)) else str(val)
+
+        return {
+            "success": True,
+            "equations": equations,
+            "variables": variables,
+            "solutions": [formatted_solution],
+            "method": "symbolic_gaussian_elimination"
+        }
+
+    except sp.SympyError as e:
+        return {
+            "success": False,
+            "error": f"Erro de sintaxe simbólica: {str(e)}",
+            "equations": equations
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "equations": equations}

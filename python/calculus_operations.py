@@ -134,26 +134,34 @@ def perform_calculus(expression: str, variable: str = "x", operation: str = "dif
         x = sp.Symbol(variable)
         expr = sp.sympify(expression)
         
+        def sympy_to_str(obj):
+            """Converte objeto sympy para string JSON-serializável."""
+            if obj is None:
+                return None
+            return str(sp.simplify(obj))
+        
         if operation == "diff":
             deriv = sp.diff(expr, x)
+            simplified = sp.simplify(deriv)
             return {
                 "success": True,
                 "expression": expression,
                 "variable": variable,
                 "operation": "diff",
-                "result": sp.simplify(deriv),
-                "result_latex": sp.latex(deriv)
+                "result": sympy_to_str(simplified),
+                "result_latex": sp.latex(simplified)
             }
         
         elif operation == "integrate":
             result = sp.integrate(expr, x)
+            simplified = sp.simplify(result)
             return {
                 "success": True,
                 "expression": expression,
                 "variable": variable,
                 "operation": "integrate",
-                "result": sp.simplify(result),
-                "result_latex": sp.latex(result)
+                "result": sympy_to_str(simplified),
+                "result_latex": sp.latex(simplified)
             }
         
         elif operation == "limit":
@@ -164,14 +172,15 @@ def perform_calculus(expression: str, variable: str = "x", operation: str = "dif
                     "expression": expression
                 }
             lim = sp.limit(expr, x, point)
+            simplified = sp.simplify(lim)
             return {
                 "success": True,
                 "expression": expression,
                 "variable": variable,
                 "operation": "limit",
                 "point": point,
-                "result": sp.simplify(lim),
-                "result_latex": sp.latex(lim)
+                "result": sympy_to_str(simplified),
+                "result_latex": sp.latex(simplified)
             }
         
         elif operation == "series":
@@ -188,7 +197,7 @@ def perform_calculus(expression: str, variable: str = "x", operation: str = "dif
                 "variable": variable,
                 "operation": "series",
                 "order": order,
-                "result": series
+                "result": str(series)
             }
         
         else:

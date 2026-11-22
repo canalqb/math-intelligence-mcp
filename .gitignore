@@ -67,3 +67,10 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 .mcpe-override
+
+# 8. ARQUIVOS DE IMPLEMENTAÇÃO E PLANEJAMENTO INTERNO (NUNCA SINCRONIZAR)
+implementacao
+implementacao.*
+IMPLEMENTACAO.*
+[iI]mplementacao*
+create_repo_v2.ps1

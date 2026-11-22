@@ -20,11 +20,9 @@ authors = ["qrodrigob <qrodrigob@gmail.com>"]
  ]
 
 [project.dependencies]
-# Dependências principais
-bunyan >= 1.8.15
-zod-py >= 0.3.0
+bunyan = ">=1.8.15"
+zod-py = ">=0.3.0"
 
-# Dependências de desenvolvimento
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.3",
@@ -39,7 +37,6 @@ mimcp-tools = "mimcp.tools:list_tools"
 
 [tool.black]
 line-length = 88
-target_version = None
 
 [tool.ruff]
 select = ["E", "F", "W", "ASCII"]

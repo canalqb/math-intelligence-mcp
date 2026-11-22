@@ -28,7 +28,8 @@ def modular_exponentiation(base: int, exponent: int, modulus: int) -> Dict[str, 
         return {"success": False, "error": str(e)}
 
 
-def discrete_logarithm(g: int, h: int, p: int, limit: Optional[int] = None) -> Dict[str, Any]:    """Calcula logaritmo discreto: encontre x tal que g^x ≡ h (mod p).
+def discrete_logarithm(g: int, h: int, p: int, limit: Optional[int] = None) -> Dict[str, Any]:
+    """Calcula logaritmo discreto: encontre x tal que g^x ≡ h (mod p).
     
     Usa o algoritmo baby-step giant-step ou força bruta para números pequenos.
     
@@ -123,6 +124,46 @@ def hash_data(data: str, algorithm: str = "sha256") -> Dict[str, Any]:
             "hash": hash_obj.hexdigest(),
             "hash_bytes": hash_obj.digest(),
         }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def advanced_crypto_operation(operation: str, key: str = "", base: int = None, exponent: int = None, modulus: int = None) -> Dict[str, Any]:
+    """Wrapper para operações criptográficas avançadas.
+    
+    Args:
+        operation: Tipo de operação ('modular_exponentiation', 'discrete_logarithm', 'hash', 'rsa_keygen')
+        key: Chave (para operações que precisam)
+        base: Base (para exponenciação modular)
+        exponent: Expoente
+        modulus: Módulo
+    
+    Returns:
+        Dict com resultado da operação
+    """
+    try:
+        if operation == "modular_exponentiation":
+            if base is None or exponent is None or modulus is None:
+                return {"success": False, "error": "modular_exponentiation requer base, exponent e modulus"}
+            return modular_exponentiation(base, exponent, modulus)
+        
+        elif operation == "discrete_logarithm":
+            if base is None or key is None or modulus is None:
+                return {"success": False, "error": "discrete_logarithm requer base (g), key (h) e modulus (p)"}
+            return discrete_logarithm(base, int(key), modulus)
+        
+        elif operation == "hash":
+            if not key:
+                return {"success": False, "error": "hash requer dados (key)"}
+            return hash_data(key)
+        
+        elif operation == "rsa_keygen":
+            bits = int(key) if key else 2048
+            return rsa_key_generation(bits)
+        
+        else:
+            return {"success": False, "error": f"Operação '{operation}' não suportada. Use: modular_exponentiation, discrete_logarithm, hash, rsa_keygen"}
+    
     except Exception as e:
         return {"success": False, "error": str(e)}
 
