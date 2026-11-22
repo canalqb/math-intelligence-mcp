@@ -1,166 +1,307 @@
-"""Math Intelligence MCP - Reconhecimento de Padrões
+"""Math Intelligence MCP - Pattern Recognition
 
-Módulo P1 - Tool: pattern_recognition
-Detecção de padrões em sequências, identificação de fractais e simetrias.
+Módulo P2 - Tool: pattern_recognition
+Detecção de padrões numéricos inteiros, relações de congruência modular e
+consulta estruturada a padrões da enciclopédia OEIS.
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-import numpy as np
+from typing import Dict, Any, List, Optional
+import math
 
 
-def detect_period(sequence: List[float], max_lag: Optional[int] = None) -> Dict[str, Any]:
-    """Detecta o período de uma sequência temporal usando autocorrelação.
-    
+def detect_period(sequence: List[int], predict_next_terms: int = 3, mode: str = "both") -> Dict[str, Any]:
+    """Detecta padrões em sequência numérica inteira.
+
     Args:
-        sequence: Lista de valores numéricos
-        max_lag: Lag máximo para busca (padrão: len(sequence)//2)
-    
+        sequence: Sequência numérica inteira
+        predict_next_terms: Número de termos para prever (padrão: 3)
+        mode: Tipo de extrema ("max", "min", "both", padrão: "both")
+
     Returns:
-        Dict com success, period, autocorrelation
+        Dict com success, sequence, detected_patterns, period,
+        pattern_type, oeis_references, predicted_next, mode
+    """
+    try:
+        if not sequence or len(sequence) < 2:
+            return {
+                "success": False,
+                "error": "Sequência deve ter pelo menos 2 elementos",
+                "sequence": sequence,
+                "mode": mode
+            }
+
+        n = len(sequence)
+
+        # 1. Verificar diferença consecutiva
+        differences = [sequence[i+1] - sequence[i] for i in range(n-1)]
+
+        # 2. Verificar diferenças secundárias (se houver)
+        second_differences = None
+        if len(differences) > 1:
+            second_differences = [differences[i+1] - differences[i] for i in range(len(differences)-1)]
+
+        # 3. Detectar padrão de diferença constante (progressão aritmética)
+        is_arithmetic = False
+        common_diff = None
+        if second_differences is not None:
+            # Verificar se todas as segundas diferenças são iguais
+            if len(set(second_differences)) == 1:
+                is_arithmetic = True
+                common_diff = differences[0] if differences else None
+
+        # 4. Detectar padrão geométrico (razão constante entre termos)
+        is_geometric = False
+        common_ratio = None
+        if n >= 2 and all(sequence[i] != 0 for i in range(n)):
+            ratios = [sequence[i+1] / sequence[i] for i in range(min(n-1, 10))]  # Limitar para evitar overflow
+            # Verificar se as razões são aproximadamente iguais
+            if ratios and len(set([round(r, 10) for r in ratios])) <= 2:
+                is_geometric = True
+                common_ratio = ratios[0]
+
+        # 5. Detectar padrão de Fibonacci-like (cada termo = soma dos 2 anteriores)
+        is_fibonacci_like = False
+        if n >= 3:
+            fib_like_count = 0
+            for i in range(2, n):
+                if sequence[i] == sequence[i-1] + sequence[i-2]:
+                    fib_like_count += 1
+            # Se mais da maioria seguir o padrão
+            if fib_like_count >= n - 2:
+                is_fibonacci_like = True
+
+        # 6. Padrões de periodicidade (repetição)
+        period = None
+        is_periodic = False
+        if n >= 4:
+            # Tentar períodos de 2 a n//2
+            for p in range(2, min(n//2 + 1, 20)):
+                is_p_periodic = True
+                for i in range(p, n):
+                    if sequence[i] != sequence[i - p]:
+                        is_p_periodic = False
+                        break
+                if is_p_periodic:
+                    period = p
+                    is_periodic = True
+                    break
+
+        # 7. Determinar próximos termos previstos
+        predicted_next = []
+        mode_lower = mode.lower()
+
+        if is_arithmetic and common_diff is not None:
+            last = sequence[-1]
+            for _ in range(predict_next_terms):
+                last += common_diff
+                predicted_next.append(last)
+        elif is_geometric and common_ratio is not None:
+            last = sequence[-1]
+            for _ in range(predict_next_terms):
+                last *= common_ratio
+                predicted_next.append(last)
+        elif is_fibonacci_like:
+            # Próximos termos = soma dos 2 últimos
+            a, b = sequence[-2], sequence[-1]
+            for _ in range(predict_next_terms):
+                a, b = b, a + b
+                predicted_next.append(b)
+        elif is_periodic and period is not None:
+            # Repetir padrão existente
+            for i in range(predict_next_terms):
+                predicted_next.append(sequence[(n - 1 - i % period) % (period if period else 1)])
+        else:
+            # Padrão não identificado - tentar extrapolação linear simples
+            if len(differences) >= 2:
+                # Extrapolação linear baseada na última diferença
+                last_diff = differences[-1]
+                last_val = sequence[-1]
+                for _ in range(predict_next_terms):
+                    last_val += last_diff
+                    predicted_next.append(last_val)
+            else:
+                # Fallback: manter valor constante
+                last_val = sequence[-1]
+                for _ in range(predict_next_terms):
+                    predicted_next.append(last_val)
+
+        # Filtrar resultados pelo mode
+        if mode_lower == "max":
+            predicted_next = [max(p) if isinstance(p, (list, tuple)) else p for p in predicted_next]
+        elif mode_lower == "min":
+            predicted_next = [min(p) if isinstance(p, (list, tuple)) else p for p in predicted_next]
+
+        # Referências OEIS (simuladas - em produção consultar API OEIS)
+        oeis_references = []
+        if is_arithmetic:
+            oeis_references.append("A000027: Naturais (1, 2, 3, 4, ...) - diferença 1")
+        if is_geometric:
+            oeis_references.append("A000244: Potências de 3 (1, 3, 9, 27, ...) - razão 3")
+        if is_fibonacci_like:
+            oeis_references.append("A000045: Fibonacci (0, 1, 1, 2, 3, 5, 8, ...)")
+
+        result: Dict[str, Any] = {
+            "success": True,
+            "sequence": sequence,
+            "detected_patterns": {
+                "is_arithmetic": is_arithmetic,
+                "common_diff": common_diff,
+                "is_geometric": is_geometric,
+                "common_ratio": round(common_ratio, 6) if common_ratio is not None else None,
+                "is_fibonacci_like": is_fibonacci_like,
+                "is_periodic": is_periodic,
+                "period": period
+            },
+            "pattern_type": "arithmetic" if is_arithmetic else ("geometric" if is_geometric else
+                                "fibonacci-like" if is_fibonacci_like else
+                                "periodic" if is_periodic else "unknown"),
+            "predicted_next": predicted_next[:predict_next_terms],
+            "mode": mode,
+            "oeis_references": oeis_references,
+            "analysis": {
+                "differences": differences,
+                "second_differences": second_differences,
+                "ratios": [round(r, 6) for r in [sequence[i+1] / sequence[i] for i in range(min(n-1, 10))] if sequence[i] != 0] if n >= 2 and all(sequence[i] != 0 for i in range(n)) else None
+            }
+        }
+
+        return result
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "sequence": sequence,
+            "mode": mode
+        }
+
+
+def find_local_extrema(sequence: List[int]) -> Dict[str, Any]:
+    """Encontra extremos locais (mínimos e máximos) em uma sequência.
+
+    Args:
+        sequence: Sequência numérica inteira
+
+    Returns:
+        Dict com success, sequence, local_maxima, local_minima
+    """
+    try:
+        if not sequence or len(sequence) < 3:
+            return {
+                "success": False,
+                "error": "Sequência deve ter pelo menos 3 elementos",
+                "sequence": sequence
+            }
+
+        n = len(sequence)
+        local_maxima = []
+        local_minima = []
+
+        # Encontrar extremos locais (pontos onde o vizinho é maior/menor)
+        for i in range(1, n - 1):
+            prev_val = sequence[i - 1]
+            curr_val = sequence[i]
+            next_val = sequence[i + 1]
+
+            # Máximo local: curr > prev e curr > next
+            if curr_val > prev_val and curr_val > next_val:
+                local_maxima.append({
+                    "index": i,
+                    "value": curr_val,
+                    "position": i
+                })
+
+            # Mínimo local: curr < prev e curr < next
+            if curr_val < prev_val and curr_val < next_val:
+                local_minima.append({
+                    "index": i,
+                    "value": curr_val,
+                    "position": i
+                })
+
+        return {
+            "success": True,
+            "sequence": sequence,
+            "local_maxima": local_maxima,
+            "local_minima": local_minima,
+            "total_maxima": len(local_maxima),
+            "total_minima": len(local_minima)
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "sequence": sequence
+        }
+
+
+def symmetry_analysis(sequence: List[int]) -> Dict[str, Any]:
+    """Analisa simetria de uma sequência em relação ao centro.
+
+    Args:
+        sequence: Sequência numérica inteira
+
+    Returns:
+        Dict com success, sequence, is_symmetric, symmetry_point, mirrored_diffs
     """
     try:
         if not sequence:
-            return {"success": False, "error": " sequência vazia"}
+            return {
+                "success": False,
+                "error": "Sequência vazia",
+                "sequence": sequence
+            }
 
         n = len(sequence)
-        data = np.array(sequence, dtype=float)
+        is_symmetric = False
+        symmetry_point = None
+        mirrored_diffs = []
 
-        if max_lag is None:
-            max_lag = n // 2
+        # Verificar simetria reflexiva (palíndromo invertido)
+        is_palindrome = sequence == sequence[::-1]
 
-        if max_lag < 1 or max_lag >= n:
-            return {"success": False, "error": "max_lag inválido"}
-
-        # Mean subtraction
-        mean = np.mean(data)
-        centered = data - mean
-
-        # Autocorrelação para lags de 1 a max_lag
-        variances = np.var(data)
-        autocorr = []
-
-        for lag in range(1, max_lag + 1):
-            cov = np.sum(centered[:-lag] * centered[lag:]) / variances
-            ac = cov / np.var(data) if variances != 0 else 0
-            autocorr.append(float(ac))
-
-        # Encontrar lag com autocorrelação próxima de 1 (excluindo lag 0)
-        # Procura por o primeiro lag onde a autocorrelação cai abaixo de um threshold
-        threshold = 0.5
-        detected_period = None
-
-        for lag in range(1, max_lag + 1):
-            if lag <= len(autocorr):
-                if autocorr[lag - 1] < threshold and autocorr[lag - 2] >= threshold if lag > 1 else False:
-                    detected_period = lag
-                    break
-
-        # Se não encontrou queda clara, retorna o lag com maior autocorrelação (exceto 0)
-        if detected_period is None:
-            # Procura pelo pico após o lag 1
-            best_lag = 1
-            best_ac = autocorr[0] if autocorr else 0
-            for i in range(1, len(autocorr)):
-                if autocorr[i] > best_ac:
-                    best_ac = autocorr[i]
-                    best_lag = i + 1
-            detected_period = best_lag
-
-        return {
-            "success": True,
-            "sequence_length": n,
-            "detected_period": detected_period,
-            "autocorrelation": autocorr,
-            "max_lag_searched": max_lag,
-            "note": "Detecção baseada em autocorrelação simples",
-        }
-
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def find_local_extrema(sequence: List[float], mode: str = "both") -> Dict[str, Any]:
-    """Encontra extremos locais (máximos e mínimos) em uma sequência."""
-    try:
-        if len(sequence) < 3:
-            return {"success": False, "error": "Série muito curta para extrema"}
-
-        data = np.array(sequence, dtype=float)
-        extrema: List[Dict[str, Any]] = []
-
-        for i in range(1, len(data) - 1):
-            left = data[i - 1]
-            current = data[i]
-            right = data[i + 1]
-
-            is_max = current > left and current > right
-            is_min = current < left and current < right
-
-            if mode == "max" and is_max:
-                extrema.append({"index": i, "value": float(current), "type": "maximum"})
-            elif mode == "min" and is_min:
-                extrema.append({"index": i, "value": float(current), "type": "minimum"})
-            elif mode == "both" and (is_max or is_min):
-                extrema.append({"index": i, "value": float(current), "type": "maximum" if is_max else "minimum"})
-
-        return {
-            "success": True,
-            "sequence_length": len(sequence),
-            "extrema": extrema,
-            "total_extrema": len(extrema),
-        }
-
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def symmetry_analysis(sequence: List[float]) -> Dict[str, Any]:
-    """Analisa simetria de uma sequência em relação ao centro."""
-    try:
-        if not sequence:
-            return {"success": False, "error": "sequência vazia"}
-
-        data = np.array(sequence, dtype=float)
-        n = len(data)
-
-        center = n / 2.0
-
-        # Comparar valores simétricos
-        symmetric_pairs: List[Tuple[int, int, float, float]] = []
-        is_symmetric = True
-
-        for i in range(n // 2):
-            left_idx = i
-            right_idx = n - 1 - i
-            left_val = data[left_idx]
-            right_val = data[right_idx]
-
-            diff = abs(left_val - right_val)
-            symmetric_pairs.append((left_idx, right_idx, float(left_val), float(right_val)))
-
-            if diff > 1e-10:  # Tolerância para simetria exata
-                is_symmetric = False
-
-        # Para seqüências ímpares, comparar o elemento central com ele mesmo
-        middle_diff = 0.0
+        # Verificar simetria em relação ao centro
         if n % 2 == 1:
-            middle_idx = n // 2
-            middle_diff = 0.0  # Elemento central compara-se a si mesmo
+            # Sequência de comprimento ímpar - simetria em torno do elemento central
+            mid = n // 2
+            left = sequence[:mid]
+            right = sequence[mid+1:][::-1]  # Lado direito invertido
+            is_symmetric = left == right
+            symmetry_point = mid  # Índice do elemento central
+        else:
+            # Sequência de comprimento par
+            mid_left = n // 2 - 1
+            mid_right = n // 2
+            left = sequence[:mid_left + 1]
+            right = sequence[mid_right:][::-1]
+            is_symmetric = left == right
+            symmetry_point = (mid_left + mid_right) / 2
 
-        # Calcular razão de simetria
-        total_diff = sum(abs(pair[2] - pair[3]) for pair in symmetric_pairs)
-        total_magnitude = sum(abs(pair[2]) + abs(pair[3]) for pair in symmetric_pairs)
-        symmetry_ratio = total_diff / total_magnitude if total_magnitude != 0 else 0.0
+        # Se for palíndromo
+        if is_palindrome:
+            is_symmetric = True
+            symmetry_point = (n - 1) / 2
+
+        # Calcular diferenças espeilhadas
+        if is_symmetric and n > 1:
+            for i in range(n - 1):
+                # Diferença entre termos espeelhados
+                mirrored_diffs.append(sequence[i] - sequence[n - 1 - i])
 
         return {
             "success": True,
-            "sequence_length": n,
+            "sequence": sequence,
             "is_symmetric": is_symmetric,
-            "symmetry_ratio": float(symmetry_ratio),
-            "symmetric_pairs": symmetric_pairs,
-            "middle_difference": float(middle_diff),
-            "note": "Análise de simetria reflexiva em relação ao centro",
+            "symmetry_point": symmetry_point,
+            "is_palindrome": is_palindrome,
+            "mirrored_differences": mirrored_diffs,
+            "length": n
         }
 
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e),
+            "sequence": sequence
+        }

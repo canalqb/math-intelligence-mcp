@@ -5,16 +5,17 @@ Solução de sistemas lineares, operações com matrizes, valores e vetores.
 """
 
 from typing import Dict, Any, List, Optional
+import re
 import numpy as np
 
 
-def solve_linear_system(equations: List[str], variables: List[str] = None) -> Dict[str, Any]:
+def solve_linear_system(equations: List[str], variables: Optional[List[str]] = None) -> Dict[str, Any]:
     """Resolve um sistema de equações lineares.
-    
+
     Args:
         equations: Lista de equações como strings (ex: ["x + y = 5", "2*x - y = 1"])
         variables: Lista de variáveis (ex: ["x", "y"]); se None, tenta inferir
-    
+
     Returns:
         Dict com success, solution, matrix, determinant
     """
@@ -25,11 +26,11 @@ def solve_linear_system(equations: List[str], variables: List[str] = None) -> Di
             for eq in equations:
                 all_vars.update(re.findall(r'[a-z]', eq))
             variables = sorted(list(all_vars))
-        
+
         n = len(variables)
         A = np.zeros((n, n))
         b = np.zeros(n)
-        
+
         for i, eq in enumerate(equations):
             # Parsear LHS e RHS
             if "=" not in eq:
@@ -38,15 +39,15 @@ def solve_linear_system(equations: List[str], variables: List[str] = None) -> Di
                     "error": f"Equação {i+1} não tem sinal de igual",
                     "equations": equations
                 }
-            
+
             lhs, rhs = [s.strip() for s in eq.split("=", 1)]
             b[i] = _parse_numeric(rhs)
-            
+
             # Parsear coeficientes de variáveis
             for j, var in enumerate(variables):
                 coeff = _parse_coefficient(lhs, var)
                 A[i, j] = coeff
-        
+
         # Resolver sistema
         try:
             solution = np.linalg.solve(A, b)
@@ -61,9 +62,9 @@ def solve_linear_system(equations: List[str], variables: List[str] = None) -> Di
                     "variables": variables
                 }
             raise
-        
+
         solution_dict = {variables[i]: float(solution[i]) for i in range(n)}
-        
+
         return {
             "success": True,
             "solution": solution_dict,
@@ -72,7 +73,7 @@ def solve_linear_system(equations: List[str], variables: List[str] = None) -> Di
             "determinant": float(np.linalg.det(A)),
             "variables": variables
         }
-        
+
     except Exception as e:
         return {
             "success": False,
@@ -95,11 +96,11 @@ def _parse_numeric(expr: str) -> float:
 def _parse_coefficient(expr: str, variable: str) -> float:
     """Extrai o coeficiente de uma variável em uma expressão."""
     # Padrões: "3*x", "-2x", "+5*x", "x" (coeff=1), "-x" (coeff=-1)
-    pattern = r'([+-]?\\d*\\.?\\**\\**?\\*?x?)'.replace('x', variable)
+    pattern = r'([+-]?\d*\.?\*\*?\*?x?)'.replace('x', variable)
     match = re.search(pattern, expr)
     if not match:
         return 0.0
-    
+
     coeff_str = match.group(1).replace(variable, '').strip()
     if not coeff_str or coeff_str in ['+', '-']:
         return -1 if coeff_str == '-' else 1
@@ -114,7 +115,7 @@ def matrix_multiplication(m1: List[List[float]], m2: List[List[float]]) -> Dict[
     try:
         A = np.array(m1)
         B = np.array(m2)
-        
+
         if A.shape[1] != B.shape[0]:
             return {
                 "success": False,
@@ -122,9 +123,9 @@ def matrix_multiplication(m1: List[List[float]], m2: List[List[float]]) -> Dict[
                 "m1": m1,
                 "m2": m2
             }
-        
+
         result = A @ B
-        
+
         return {
             "success": True,
             "result": result.tolist(),
@@ -146,7 +147,7 @@ def determinant(matrix: List[List[float]]) -> Dict[str, Any]:
     try:
         A = np.array(matrix)
         det = np.linalg.det(A)
-        
+
         return {
             "success": True,
             "determinant": float(det),

@@ -123,7 +123,7 @@ def correlation(x_data: List[float], y_data: List[float]) -> Dict[str, Any]:
 
 
 def probability_distribution(distribution: str, params: Dict[str, Any],
-                              x: Optional[float] = None) -> Dict[str, Any]:
+                               x: Optional[float] = None) -> Dict[str, Any]:
     """Calcula probabilidades de distribuições comuns."""
     try:
         if distribution.lower() == "normal":
@@ -177,3 +177,25 @@ def probability_distribution(distribution: str, params: Dict[str, Any],
             }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def analyze_statistics(operation: str = "descriptive", data: List[float] = None) -> Dict[str, Any]:
+    """Ponto de entrada unificado para operações estatísticas.
+
+    Suporta: descriptive (estatísticas básicas), normality_test,
+    correlation (requires two lists), probability_distribution.
+    """
+    if operation == "descriptive":
+        if data is None or len(data) == 0:
+            return {"success": False, "error": "Dados necessários para estatísticas descritivas"}
+        return descriptive_statistics(data)
+    elif operation == "normality_test":
+        if data is None or len(data) < 3:
+            return {"success": False, "error": "Dados insuficientes para teste de normalidade"}
+        return test_normality(data)
+    elif operation == "correlation":
+        return {"success": False, "error": "Correlation requires two data lists (x and y)"}
+    elif operation == "probability_distribution":
+        return {"success": False, "error": "probability_distribution needs distribution params, not bare data"}
+    else:
+        return {"success": False, "error": f"Operação '{operation}' não suportada"}

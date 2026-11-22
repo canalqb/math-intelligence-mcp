@@ -116,6 +116,102 @@ def integrate(expression: str, variable: str = "x", definite: bool = False,
         }
 
 
+def perform_calculus(expression: str, variable: str = "x", operation: str = "diff",
+                     point: Optional[float] = None, order: Optional[int] = None) -> Dict[str, Any]:
+    """Executa operação de cálculo solicitada.
+    
+    Args:
+        expression: Expressão matemática
+        variable: Variável para operação
+        operation: "diff" | "integrate" | "limit" | "series"
+        point: Ponto para derivada/limite (None para geral)
+        order: Ordem da série de Taylor (se operation=series)
+    
+    Returns:
+        Dict com success, result, steps, error
+    """
+    try:
+        x = sp.Symbol(variable)
+        expr = sp.sympify(expression)
+        
+        if operation == "diff":
+            deriv = sp.diff(expr, x)
+            return {
+                "success": True,
+                "expression": expression,
+                "variable": variable,
+                "operation": "diff",
+                "result": sp.simplify(deriv),
+                "result_latex": sp.latex(deriv)
+            }
+        
+        elif operation == "integrate":
+            result = sp.integrate(expr, x)
+            return {
+                "success": True,
+                "expression": expression,
+                "variable": variable,
+                "operation": "integrate",
+                "result": sp.simplify(result),
+                "result_latex": sp.latex(result)
+            }
+        
+        elif operation == "limit":
+            if point is None:
+                return {
+                    "success": False,
+                    "error": "Limite requer ponto de avaliação",
+                    "expression": expression
+                }
+            lim = sp.limit(expr, x, point)
+            return {
+                "success": True,
+                "expression": expression,
+                "variable": variable,
+                "operation": "limit",
+                "point": point,
+                "result": sp.simplify(lim),
+                "result_latex": sp.latex(lim)
+            }
+        
+        elif operation == "series":
+            if order is None:
+                return {
+                    "success": False,
+                    "error": "Série requer ordem (número de termos)",
+                    "expression": expression
+                }
+            series = sp.series(expr, x, 0, order)
+            return {
+                "success": True,
+                "expression": expression,
+                "variable": variable,
+                "operation": "series",
+                "order": order,
+                "result": series
+            }
+        
+        else:
+            return {
+                "success": False,
+                "error": f"Operação '{operation}' não suportada. Use: diff, integrate, limit, series",
+                "expression": expression
+            }
+    
+    except sp.SympyError as e:
+        return {
+            "success": False,
+            "error": f"Erro de sintaxe simbólica: {str(e)}",
+            "expression": expression
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "expression": expression
+        }
+
+
 def limit(expression: str, variable: str = "x", point: Optional[float] = None,
           direction: str = "two-sided") -> Dict[str, Any]:
     """Calcula limite de uma expressão.
