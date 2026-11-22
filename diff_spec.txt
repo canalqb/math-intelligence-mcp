@@ -1,20 +1,20 @@
-﻿diff --git a/MIMCP_API_SPEC.md b/MIMCP_API_SPEC.md
-index b1ac8a0..31af3f9 100644
+diff --git a/MIMCP_API_SPEC.md b/MIMCP_API_SPEC.md
+index b1ac8a0..130763d 100644
 --- a/MIMCP_API_SPEC.md
 +++ b/MIMCP_API_SPEC.md
-@@ -1,226 +1,548 @@
+@@ -1,226 +1,338 @@
 -# MIMCP API Specification - Perguntas Frequentes
 +# MIMCP API Specification - MathForge Protocol 2.1.0-REV
  
 -## FAQ
-+## 1. Vis├úo Geral
++## 1. Visão Geral
  
 -**Q: Quantas tools estao disponiveis?**  
 -A: 12 tools divididas em 3 niveis (P0: 5 tools essenciais, P1: 5 tools avancadas, P2: 2 tools opcionais), todas acessiveis via JSON-RPC 2.0 em POST /mcp/json-rpc.
-+O **MathForge MCP** implementa estritamente o protocolo **MCP oficial (2024-11-05+)** com ciclo de vida completo, transportes certificados e cat├ílogo de 16 ferramentas organizadas em 3 n├¡veis (P0, P1, P2). Todas as ferramentas s├úo acess├¡veis via JSON-RPC 2.0 em `POST /mcp/json-rpc`.
++O **MathForge MCP** implementa estritamente o protocolo **MCP oficial (2024-11-05+)** com ciclo de vida completo e catálogo de 17 ferramentas organizadas em 3 níveis (P0, P1, P2). Todas as ferramentas são acessíveis via JSON-RPC 2.0 em `POST /mcp/json-rpc`.
  
 -**Q: Qual o formato de requisicao?**  
--A: JSON-RPC 2.0 padrao. Requisi├º├Áes devem conter jsonrpc, method, params e id. O header Content-Type: application/json e o endpoint /mcp/json-rpc sao obrigatorios.
+-A: JSON-RPC 2.0 padrao. Requisições devem conter jsonrpc, method, params e id. O header Content-Type: application/json e o endpoint /mcp/json-rpc sao obrigatorios.
 +### 1.1. Ciclo de Vida Oficial MCP
  
 -**Q: Como lidar com erros?**  
@@ -23,10 +23,10 @@ index b1ac8a0..31af3f9 100644
  
 -**Q: Onde encontrar documentacao completa?**  
 -A: Consulte MIMCP_API_SPEC.md este arquivo, ou acesse a documentacao gerada automaticamente em POST /mcp/json-rpc com method: math_evaluate como exemplo inicial.
-+1. **`initialize`**: Negocia├º├úo de vers├úo de protocolo e troca de *capabilities* (tools, resources, prompts).
-+2. **`notifications/initialized`**: Confirma├º├úo de prontid├úo do cliente.
-+3. **`tools/list`**: Descoberta de cat├ílogo com schemas JSON Schema / Pydantic estritos.
-+4. **`tools/call`**: Execu├º├úo padronizada:
++1. `initialize`: Negociação de versão de protocolo e troca de `capabilities` (tools, resources, prompts).
++2. `notifications/initialized`: Confirmação de prontidão do cliente.
++3. `tools/list`: Descoberta de catálogo com schemas JSON Schema / Pydantic estritos.
++4. `tools/call`: Execução padronizada:
  
 ----
 +```json
@@ -44,86 +44,124 @@ index b1ac8a0..31af3f9 100644
 +  }
 +}
 +```
-+
+ 
+-## JSON-RPC 2.0 Endpoint
 +### 1.2. Transportes Oficiais Suportados
-+
-+- **STDIO**: Padr├úo prim├írio para clientes locais (Claude Desktop, Cursor, Antigravity IDE, VS Code, Goose).
-+- **Streamable HTTP**: Transporte remoto principal (POST `/mcp` com suporte a streaming de chunks e SSE unidirecional conforme a spec). O SSE puro legado ├® mantido apenas como fallback opcional.
-+
-+### 1.3. Padr├úo de Retorno (Agent Self-Correction)
-+
-+Todas as ferramentas operam com retornos estruturados separando falhas de neg├│cio (com `agent_hint` e `retryable`) de erros de protocolo MCP:
-+
-+```json
-+{
+ 
+-```
+-POST /mcp/json-rpc
+-Content-Type: application/json
+-```
++- **STDIO**: Padrão primário para clientes locais (Claude Desktop, Cursor, Antigravity IDE, VS Code, Goose).
++- **Streamable HTTP**: Transporte remoto principal (POST `/mcp` com suporte a streaming de chunks e SSE unidirecional conforme a spec). O SSE puro legado é mantido apenas como fallback opcional.
+ 
+----
++### 1.3. Padrão de Retorno (Agent Self-Correction)
+ 
+-## Estrutura da Requisicao
++Todas as ferramentas operam com retornos estruturados separando falhas de negócio (com `agent_hint` e `retryable`) de erros de protocolo MCP:
+ 
+ ```json
+ {
+-  "jsonrpc": "2.0",
+-  "method": "nome_da_tool",
+-  "params": {/* parametros especificos }},
+-  "id": 1
 +  "success": false,
 +  "error": {
 +    "code": "PRECISION_LIMIT_EXCEEDED",
 +    "type": "RESOURCE_LIMIT",
-+    "message": "A precis├úo solicitada (5000 d├¡gitos) excede o limite s├¡ncrono de 1000 d├¡gitos.",
-+    "agent_hint": "Reduza a precis├úo para <= 1000 ou submeta o c├ílculo via distributed_job_submit.",
++    "message": "A precisão solicitada (5000 dígitos) excede o limite síncrono de 1000 dígitos.",
++    "agent_hint": "Reduza a precisão para <= 1000 ou submeta o cálculo via distributed_job_submit.",
 +    "retryable": true
 +  }
-+}
-+```
-+
-+## 2. Cat├ílogo de Ferramentas (16 Tools P0-P2)
-+
-+### 2.1. N├¡vel P0 - Ferramentas Fundamentais (2 tools)
-+
+ }
+ ```
+ 
+-### Parametros Padrao Obrigatorios
+-
+-| Campo | Descricao | Obrigatorio |
+-|-------|-----------|------------|
+-| jsonrpc | Versao do protocolo | Sim |
+-| method | Nome da tool/ metodo | Sim |
+-| params | Objeto com parametros da tool | Sim |
+-| id | Identificador da requisicao | Sim |
++## 2. Catálogo de Ferramentas (17 Tools P0-P2)
+ 
+----
+-
+-## Ferramentas Disponiveis (12 Tools P0-P2)
++### 2.1. Nível P0 - Ferramentas Fundamentais (2 tools)
+ 
+-### Nivel P0 - Ferramentas Essenciais (5 tools)
 +#### 1. `math_evaluate`
  
--## JSON-RPC 2.0 Endpoint
-+**Descri├º├úo:** Avalia express├Áes matem├íticas com valida├º├úo formal de AST e sele├º├úo expl├¡cita de precis├úo.
+-#### Como usar o math_evaluate?
++**Descrição:** Avalia expressões matemáticas com validação formal de AST e seleção explícita de precisão.
  
-+**Par├ómetros:**
-+- `expression` (string, obrigat├│rio): Express├úo matem├ítica restrita ├á gram├ítica formal.
+-A: Avalie expressoes matematicas padrao. Exemplo: math_evaluate({expression: "2 + 2 * 3"}) retorna success: true, data: 8.
++**Parâmetros:**
++- `expression` (string, obrigatório): Expressão matemática restrita à gramática formal.
 +- `mode` (string enum: `["FAST", "HIGH", "EXACT", "AUTO"]`, default: `"AUTO"`):
 +  - `FAST`: Ponto flutuante IEEE 754 de 64 bits (hardware float).
-+  - `HIGH`: Precis├úo arbitr├íria configur├ível via mpmath/MPFR (50 a 1.000 d├¡gitos).
-+  - `EXACT`: Aritm├®tica racional exata simb├│lica via SymPy/GMP.
++  - `HIGH`: Precisão arbitrária configurável via mpmath/MPFR (50 a 1.000 dígitos).
++  - `EXACT`: Aritmética racional exata simbólica via SymPy/GMP.
 +  - `AUTO`: Seleciona com base no condicionamento e erro estimado.
-+- `precision_digits` (integer, opcional, default: 50, m├íx: 1.000 no modo s├¡ncrono).
-+
++- `precision_digits` (integer, opcional, default: 50, máx: 1.000 no modo síncrono).
+ 
+-| Parametro | Tipo | Descricao | Padrao |
+-|-----------|------|-----------|--------|
+-| expression | string | Expressao mathematica valida | Obrigatorio |
 +**Retorno:** `result`, `decimal_representation`, `mode_used`, `precision_bits`, `evaluation_time_ms`.
-+
+ 
+-Resposta de sucesso:
 +**Resposta de sucesso:**
-+```json
+ ```json
+-{"jsonrpc":"2.0","result":{"success":true,"data":8,"expression":"2 + 2 * 3"},"id":1}
 +{
 +  "jsonrpc":"2.0",
 +  "result":{"success":true,"data":1.41421356,"expression":"sqrt(2)","mode_used":"HIGH","precision_bits":80,"evaluation_time_ms":12},
 +  "id":1
 +}
-+```
-+
+ ```
+ 
+-Resposta de erro:
 +**Resposta de erro:**
-+```json
+ ```json
+-{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid parameters"},"id":1}
 +{
 +  "jsonrpc":"2.0","error":{
 +    "code":-32602,
 +    "message":"Invalid parameters",
-+    "error":{"code":"PRECISION_LIMIT_EXCEEDED","type":"RESOURCE_LIMIT","message":"A precis├úo solicitada (5000 d├¡gitos) excede o limite s├¡ncrono de 1000 d├¡gitos.","agent_hint":"Reduza a precis├úo para <= 1000 ou submeta o c├ílculo via distributed_job_submit.","retryable":true}
++    "error":{"code":"PRECISION_LIMIT_EXCEEDED","type":"RESOURCE_LIMIT","message":"A precisão solicitada (5000 dígitos) excede o limite síncrono de 1000 dígitos.","agent_hint":"Reduza a precisão para <= 1000 ou submeta o cálculo via distributed_job_submit.","retryable":true}
 +  },
 +  "id":1
 +}
  ```
--POST /mcp/json-rpc
--Content-Type: application/json
-+
+ 
+----
 +#### 2. `result_verify`
-+
-+**Descri├º├úo:** Verificador rigoroso que distingue igualdade simb├│lica formal, verifica├º├úo num├®rica aproximada e validade de dom├¡nio.
-+
-+**Par├ómetros:**
-+- `candidate_solution` (string, obrigat├│rio): Valor ou express├úo candidata.
-+- `original_equation` (string, obrigat├│rio): Express├úo de refer├¬ncia.
+ 
+-#### Como usar o math_explain?
++**Descrição:** Verificador rigoroso que distingue igualdade simbólica formal, verificação numérica aproximada e validade de domínio.
+ 
+-A: Explicar conceitos matematicos de forma estruturada. Niveis disponiveis: basic, intermediate, advanced, expert.
++**Parâmetros:**
++- `candidate_solution` (string, obrigatório): Valor ou expressão candidata.
++- `original_equation` (string, obrigatório): Expressão de referência.
 +- `verification_type` (string enum: `["symbolic", "numerical", "domain_check", "all"]`, default: `"all"`).
 +- `tolerance` (number, opcional, default: 1e-15).
-+
-+**Retorno:** `verified` (bool), `verification_type`, `residual`, `tolerance_used`, `domain_valid` (bool), `is_formal_proof` (bool: false para m├®todos num├®ricos).
-+
+ 
+-| Parametro | Tipo | Descricao | Obrigatorio |
+-|-----------|------|-----------|------------|
+-| topic | string | Conceito a explicar | Sim |
+-| level | string | Nivel de detalhe | Nao |
++**Retorno:** `verified` (bool), `verification_type`, `residual`, `tolerance_used`, `domain_valid` (bool), `is_formal_proof` (bool: false para métodos numéricos).
+ 
+-Resposta de sucesso:
 +**Resposta de sucesso:**
-+```json
+ ```json
+-{"jsonrpc":"2.0","result":{"success":true,"data":"A derivada mede a taxa...","topic":"derivada","level":"basic","formatted":true},"id":1}
 +{
 +  "jsonrpc":"2.0","result":{"success":true,"verified":true,"verification_type":"symbolic","residual":0,"tolerance_used":1e-15,"domain_valid":true,"is_formal_proof":false},
 +  "id":1
@@ -132,254 +170,243 @@ index b1ac8a0..31af3f9 100644
  
  ---
  
--## Estrutura da Requisicao
-+### 2.2. N├¡vel P1 - Ferramentas Avan├ºadas de C├ílculo, ├ülgebra e Estat├¡stica (6 tools)
- 
-+#### 3. `math_explain`
-+
-+**Descri├º├úo:** Explica a resolu├º├úo do problema estruturadamente em LaTeX, separando resolu├º├úo did├ítica de demonstra├º├úo axiom├ítica.
-+
-+**Par├ómetros:**
-+- `topic_or_problem` (string): T├│pico ou problema a explicar.
-+- `output_format` (`"step_by_step" | "conceptual"`): Formato de sa├¡da.
-+
-+**Resposta de sucesso:**
- ```json
- {
--  "jsonrpc": "2.0",
--  "method": "nome_da_tool",
--  "params": {/* parametros especificos }},
--  "id": 1
-+  "jsonrpc":"2.0","result":{"success":true,"data":"A derivada de x┬▓ ├® 2x via regra da pot├¬ncia.","topic":"derivada de x┬▓","output_format":"step_by_step","formatted":true},
-+  "id":1
- }
- ```
- 
--### Parametros Padrao Obrigatorios
-+#### 4. `math_optimize`
- 
--| Campo | Descricao | Obrigatorio |
--|-------|-----------|------------|
--| jsonrpc | Versao do protocolo | Sim |
--| method | Nome da tool/ metodo | Sim |
--| params | Objeto com parametros da tool | Sim |
--| id | Identificador da requisicao | Sim |
-+**Descri├º├úo:** Otimizar express├Áes algebricas para forma simplificada.
- 
-----
-+**Par├ómetros:**
-+- `expression` (string): Express├úo a otimizar.
-+- `strategy` (`"simplify" | "factor" | "expand" | "trig_reduce"`): Estrat├®gia de otimiza├º├úo.
- 
--## Ferramentas Disponiveis (12 Tools P0-P2)
-+**Resposta de sucesso:**
-+```json
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"data":"(x + 1)┬▓","expression":"x * x + 2 * x + 1","optimized":true},
-+  "id":1
-+}
-+```
- 
--### Nivel P0 - Ferramentas Essenciais (5 tools)
-+#### 5. `symbolic_solver`
- 
--#### Como usar o math_evaluate?
-+**Descri├º├úo:** Solucionador simb├│lico modular com separa├º├úo interna entre resolvedores lineares, n├úo-lineares e EDOs.
- 
--A: Avalie expressoes matematicas padrao. Exemplo: math_evaluate({expression: "2 + 2 * 3"}) retorna success: true, data: 8.
-+**Par├ómetros:**
-+- `equations` (array de strings): Equa├º├Áes a resolver.
-+- `variables` (array de strings): Vari├íveis independentes.
-+- `domain` (`"real" | "complex"`): Dom├¡nio da resolu├º├úo.
- 
--| Parametro | Tipo | Descricao | Padrao |
--|-----------|------|-----------|--------|
--| expression | string | Expressao mathematica valida | Obrigatorio |
-+**Retorno:** Status expl├¡cito: `solution_type` (`"exact" | "approximate" | "conditional" | "no_solution_found" | "inconclusive"`), lista de solu├º├Áes e condi├º├Áes de contorno.
- 
--Resposta de sucesso:
-+**Resposta de sucesso:**
- ```json
--{"jsonrpc":"2.0","result":{"success":true,"data":8,"expression":"2 + 2 * 3"},"id":1}
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"solution_type":"exact","solutions":["x = 2"],"conditional_parameters":[],"is_formal_proof":false},
-+  "id":1
-+}
- ```
- 
--Resposta de erro:
-+#### 6. `calculus_operations`
-+
-+**Descri├º├úo:** Deriva├º├úo anal├¡tica, integra├º├úo simb├│lica e num├®rica de alta precis├úo, limites e expans├úo em s├®ries.
-+
-+**Par├ómetros:**
-+- `expression`: Express├úo alvo.
-+- `variable`: Vari├ível de diferencia├º├úo/inla├º├úo.
-+- `operation` (`"diff" | "integrate" | "limit" | "series"`): Tipo de opera├º├úo.
-+- `point`: Ponto para limites/e expans├Áes.
-+- `order`: Ordem da s├®rie (opcional).
-+
-+**Retorno:** Resultado da opera├º├úo, res├¡duos e diagn├│stico de estabilidade.
-+
-+**Resposta de sucesso:**
- ```json
--{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid parameters"},"id":1}
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"data":"2x","expression":"x^2","operation":"diff","variable":"x"},
-+  "id":1
-+}
- ```
- 
-----
-+#### 7. `linear_algebra`
- 
--#### Como usar o math_explain?
-+**Descri├º├úo:** Opera├º├Áes matriciais diferenciando matrizes exatas de matrizes de ponto flutuante aceleradas por BLAS/LAPACK.
- 
--A: Explicar conceitos matematicos de forma estruturada. Niveis disponiveis: basic, intermediate, advanced, expert.
-+**Par├ómetros:**
-+- `matrix_a`: Primeira matriz (obrigat├│rio).
-+- `matrix_b` (opcional): Segunda matriz.
-+- `operation` (`"det" | "inv" | "eig" | "svd" | "condition_number" | "solve_system"`): Opera├º├úo.
-+- `precision_type` (`"exact_rational" | "float64"`): Tipo de precis├úo.
- 
--| Parametro | Tipo | Descricao | Obrigatorio |
--|-----------|------|-----------|------------|
--| topic | string | Conceito a explicar | Sim |
--| level | string | Nivel de detalhe | Nao |
-+**Retorno:** Matriz resultante, determinante, res├¡duo $\|Ax - b\|$ e n├║mero de condi├º├úo $\kappa(A)$ para diagn├│stico de estabilidade.
- 
--Resposta de sucesso:
-+**Resposta de sucesso:**
- ```json
--{"jsonrpc":"2.0","result":{"success":true,"data":"A derivada mede a taxa...","topic":"derivada","level":"basic","formatted":true},"id":1}
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"data":[[1,0],[0,1]],"matrix_a":"[[1,0],[0,1]]","operation":"det","determinant":1,"residual":1e-15,"condition_number":1.0},
-+  "id":1
-+}
- ```
- 
-----
-+#### 8. `statistical_analysis`
- 
 -#### Como usar o math_optimize?
-+**Descri├º├úo:** Estat├¡stica descritiva, infer├¬ncia, regress├Áes e testes de hip├│tese com c├ílculo de p-valor exato.
++### 2.2. Nível P1 - Ferramentas Avançadas de Cálculo, Álgebra e Estatística (9 tools)
  
 -A: Otimizar expressoes algebricas para forma simplificada. Exemplo: x * x + 2 * x + 1 -> (x + 1)^2.
-+**Par├ómetros:**
-+- `dataset` (matriz ou vetor num├®rico): Dados de entrada.
-+- `operations` (array de strings): Opera├º├Áes solicitadas (ex: `["mean", "median", "std", "linear_regression"]`).
++#### 3. `math_explain`
  
 -| Parametro | Tipo | Descricao | Obrigatorio |
 -|-----------|------|-----------|------------|
 -| expression | string | Expressao a otimizar | Sim |
-+**Retorno:** Estat├¡sticas descritivas, intervalos de confian├ºa, valores de p-valor e diagn├│stico de normalidade.
++**Descrição:** Explica a resolução do problema estruturadamente em LaTeX, separando resolução didática de demonstração axiomática.
  
 -Resposta de sucesso:
++**Parâmetros:**
++- `topic_or_problem` (string): Tópico ou problema a explicar.
++- `output_format` (`"step_by_step" | "conceptual"`): Formato de saída.
++
 +**Resposta de sucesso:**
  ```json
 -{"jsonrpc":"2.0","result":{"success":true,"data":"(x + 1)2","expression":"x * x + 2 * x + 1","optimized":true},"id":1}
 +{
-+  "jsonrpc":"2.0","result":{"success":true,"data":{"mean":5.2,"median":5.0,"std":1.3,"p_value":0.03},"dataset":[1,2,3,4,5]},
++  "jsonrpc":"2.0","result":{"success":true,"data":"A derivada de x² é 2x via regra da potência.","topic":"derivada de x²","output_format":"step_by_step","formatted":true},
 +  "id":1
 +}
  ```
  
 ----
-+#### 9. `precision_check`
- 
+-
 -#### Como usar o result_verify?
-+**Descri├º├úo:** Executa o mesmo c├ílculo em m├║ltiplos n├¡veis de precis├úo (53 bits, 128 bits e N bits) para detectar cancelamento catastr├│fico, perda de d├¡gitos significativos e converg├¬ncia num├®rica.
++#### 4. `math_optimize`
  
 -A: Verificar se um resultado de calculo esta correto. Confidence scale: 0.0 a 1.0.
-+**Par├ómetros:**
-+- `expression` (string): Express├úo alvo.
-+- `target_digits` (integer): D├¡gitos alvo para compara├º├úo.
++**Descrição:** Otimizar expressões algebricas para forma simplificada.
  
 -| Parametro | Tipo | Descricao | Obrigatorio |
 -|-----------|------|-----------|------------|
 -| expression | string | Expressao original | Sim |
 -| result | string | Resultado a verificar | Sim |
-+**Retorno:** Tabela comparativa de resultados, erro relativo acumulado e ├¡ndice de estabilidade.
++**Parâmetros:**
++- `expression` (string): Expressão a otimizar.
++- `strategy` (`"simplify" | "factor" | "expand" | "trig_reduce"`): Estratégia de otimização.
  
 -Resposta de sucesso:
 +**Resposta de sucesso:**
  ```json
 -{"jsonrpc":"2.0","result":{"success":true,"verified":true,"expression":"integral(x^2)","result":"x^3/3","confidence":0.95},"id":1}
 +{
-+  "jsonrpc":"2.0","result":{"success":true,"comparison_table":[{ "precision":"53 bits","result":1.41,"error":0.004 },{ "precision":"128 bits","result":1.414213,"error":0.000002 }],"target_digits":80,"index_stability":0.997},
++  "jsonrpc":"2.0","result":{"success":true,"data":"(x + 1)²","expression":"x * x + 2 * x + 1","optimized":true},
 +  "id":1
 +}
  ```
  
- ---
+----
++#### 5. `symbolic_solver`
  
 -#### Como usar o memory_profile?
-+### 2.3. N├¡vel P2 - Ferramentas Especializadas, Auditoria de DLLs e Profiling (8 tools)
-+
-+#### 10. `algorithm_profile`
++**Descrição:** Solucionador simbólico modular com separação interna entre resolvedores lineares, não-lineares e EDOs.
  
 -A: Perfilagem de consumo de memoria durante operacoes.
-+**Descri├º├úo:** Avalia a complexidade assint├│tica te├│rica $O(f(n))$ e requisitos te├│ricos de mem├│ria para um algoritmo e dimens├úo de dados especificados.
++**Parâmetros:**
++- `equations` (array de strings): Equações a resolver.
++- `variables` (array de strings): Variáveis independentes.
++- `domain` (`"real" | "complex"`): Domínio da resolução.
  
 -| Parametro | Tipo | Descricao | Obrigatorio |
 -|-----------|------|-----------|------------|
 -| operation | string | Nome da operacao | Sim |
 -| duration_ms | number | Duracao em milissegundos | Sim |
-+**Par├ómetros:**
-+- `algorithm_name`: Nome do algoritmo a perfilar.
-+- `input_size_n`: Tamanho de entrada $n$.
++**Retorno:** Status explícito: `solution_type` (`"exact" | "approximate" | "conditional" | "no_solution_found" | "inconclusive"`), lista de soluções e condições de contorno.
  
 -Resposta de sucesso:
 +**Resposta de sucesso:**
  ```json
 -{"jsonrpc":"2.0","result":{"success":true,"data":{"peak_mb":45.2,"average_mb":32.1},"operation":"search","duration_ms":150},"id":1}
 +{
-+  "jsonrpc":"2.0","result":{"success":true,"big_o":"O(n log n)","memory_theory":"O(n)","input_size_n":1000},
++  "jsonrpc":"2.0","result":{"success":true,"solution_type":"exact","solutions":["x = 2"],"conditional_parameters":[],"is_formal_proof":false},
 +  "id":1
 +}
  ```
  
 ----
-+#### 11. `hardware_benchmark`
++#### 6. `calculus_operations`
  
 -### Nivel P1 - Ferramentas Avancadas (5 tools)
-+**Descri├º├úo:** Executa benchmarks emp├¡ricos reais no host local (GFLOPS de CPU, largura de banda de mem├│ria e lat├¬ncia de ponto flutuante).
++**Descrição:** Derivação analítica, integração simbólica e numérica de alta precisão, limites e expansão em séries.
  
 -13. formula_engine
 -14. symbolic_solver
 -15. calculus_operations
 -16. linear_algebra
 -17. statistical_analysis
-+**Par├ómetros:**
-+- `test_type` (`"cpu_flops" | "memory_bandwidth" | "mpfr_throughput"`): Tipo de benchmark.
++**Parâmetros:**
++- `expression`: Expressão alvo.
++- `variable`: Variável de diferenciação/inlação.
++- `operation` (`"diff" | "integrate" | "limit" | "series"`): Tipo de operação.
++- `point`: Ponto para limites/e expansões.
++- `order`: Ordem da série (opcional).
  
 ----
++**Resposta de sucesso:**
++```json
++{
++  "jsonrpc":"2.0","result":{"success":true,"data":"2x","expression":"x^2","operation":"diff","variable":"x"},
++  "id":1
++}
++```
+ 
+-### Nivel P2 - Ferramentas Opcionais (2 tools)
++#### 7. `linear_algebra`
+ 
+-18. advanced_cryptography
+-19. pattern_recognition
++**Descrição:** Operações matriciais diferenciando matrizes exatas de matrizes de ponto flutuante aceleradas por BLAS/LAPACK.
+ 
+----
++**Parâmetros:**
++- `matrix_a`: Primeira matriz (obrigatório).
++- `matrix_b` (opcional): Segunda matriz.
++- `operation` (`"det" | "inv" | "eig" | "svd" | "condition_number" | "solve_system"`): Operação.
++- `precision_type` (`"exact_rational" | "float64"`): Tipo de precisão.
++
++**Retorno:** Matriz resultante, determinante, resíduo $\|Ax - b\|$ e número de condição $\kappa(A)$ para diagnóstico de estabilidade.
++
++**Resposta de sucesso:**
++```json
++{
++  "jsonrpc":"2.0","result":{"success":true,"data":[[1,0],[0,1]],"matrix_a":"[[1,0],[0,1]]","operation":"det","determinant":1,"residual":1e-15,"condition_number":1.0},
++  "id":1
++}
++```
+ 
+-## Requisicoes de Exemplo
++#### 8. `statistical_analysis`
+ 
+-### Exemplo 1: Avaliar expressao
++**Descrição:** Estatística descritiva, inferência, regressões e testes de hipótese com cálculo de p-valor exato.
+ 
+-```bash
+-curl -X POST http://localhost:8000/mcp/json-rpc \
+-  -H "Content-Type: application/json" \
+-  -d '{"jsonrpc":"2.0","method":"math_evaluate","params":{"expression":"(5 + 3) * 2"},"id":1}'
++**Parâmetros:**
++- `dataset` (matriz ou vetor numérico): Dados de entrada.
++- `operations` (array de strings): Operações solicitadas (ex: `["mean", "median", "std", "linear_regression"]`).
++
++**Resposta de sucesso:**
++```json
++{
++  "jsonrpc":"2.0","result":{"success":true,"data":{"mean":5.2,"median":5.0,"std":1.3,"p_value":0.03},"dataset":[1,2,3,4,5]},
++  "id":1
++}
+ ```
+ 
+-### Exemplo 2: Explicar conceito
++#### 9. `precision_check`
++
++**Descrição:** Executa o mesmo cálculo em múltiplos níveis de precisão (53 bits, 128 bits e N bits) para detectar cancelamento catastrófico, perda de dígitos significativos e convergência numérica.
++
++**Parâmetros:**
++- `expression` (string): Expressão alvo.
++- `target_digits` (integer): Dígitos alvo para comparação.
+ 
+-```bash
+-curl -X POST http://localhost:8000/mcp/json-rpc \
+-  -H "Content-Type: application/json" \
+-  -d '{"jsonrpc":"2.0","method":"math_explain","params":{"topic":"integral definida","level":"intermediate"},"id":2}'
++**Resposta de sucesso:**
++```json
++{
++  "jsonrpc":"2.0","result":{"success":true,"comparison_table":[{ "precision":"53 bits","result":1.41,"error":0.004 },{ "precision":"128 bits","result":1.414213,"error":0.000002 }],"target_digits":80,"index_stability":0.997},
++  "id":1
++}
+ ```
+ 
+-### Exemplo 3: Verificar resultado
++---
++
++### 2.3. Nível P2 - Ferramentas Especializadas, Auditorias e Profiling (6 tools)
+ 
+-```bash
+-curl -X POST http://localhost:8000/mcp/json-rpc \
+-  -H "Content-Type: application/json" \
+-  -d '{"jsonrpc":"2.0","method":"result_verify","params":{"expression":"derivada de x3","result":"3x2"},"id":3}'
++#### 10. `algorithm_profile`
++
++**Descrição:** Avalia a complexidade assintótica teórica $O(f(n))$ e requisitos teóricos de memória para um algoritmo e dimensão de dados especificados.
++
++**Parâmetros:**
++- `algorithm_name`: Nome do algoritmo a perfilar.
++- `input_size_n`: Tamanho de entrada $n$.
++
++**Resposta de sucesso:**
++```json
++{
++  "jsonrpc":"2.0","result":{"success":true,"big_o":"O(n log n)","memory_theory":"O(n)","input_size_n":1000},
++  "id":1
++}
+ ```
+ 
+-### Exemplo 4: Perfilagem de memoria
++#### 11. `hardware_benchmark`
+ 
+-```bash
+-curl -X POST http://localhost:8000/mcp/json-rpc \
+-  -H "Content-Type: application/json" \
+-  -d '{"jsonrpc":"2.0","method":"memory_profile","params":{"operation":"calculus","duration_ms":5000},"id":4}'
++**Descrição:** Executa benchmarks empíricos reais no host local (GFLOPS de CPU, largura de banda de memória e latência de ponto flutuante).
++
++**Parâmetros:**
++- `test_type` (`"cpu_flops" | "memory_bandwidth" | "mpfr_throughput"`): Tipo de benchmark.
++
 +**Resposta de sucesso:**
 +```json
 +{
 +  "jsonrpc":"2.0","result":{"success":true,"gflops":1250,"memory_bandwidth_gb_s":25.6,"mpfr_ops_per_s":850},
 +  "id":1
 +}
-+```
- 
--### Nivel P2 - Ferramentas Opcionais (2 tools)
-+#### 12. `formula_engine`
- 
--18. advanced_cryptography
--19. pattern_recognition
-+**Descri├º├úo:** Cat├ílogo curado de f├│rmulas cient├¡ficas e financeiras com substitui├º├úo formal e isolamento de inc├│gnitas.
+ ```
  
 ----
-+**Par├ómetros:**
-+- `formula_id`: Identificador da f├│rmula.
-+- `substitutions`: Mapa de substitui├º├Áes de vari├íveis.
-+- `solve_for`: Vari├ível a resolver.
++#### 12. `formula_engine`
  
--## Requisicoes de Exemplo
-+**Retorno:** F├│rmula resolvida com valores substitu├¡dos.
+-## Códigos de Erro
++**Descrição:** Catálogo curado de fórmulas científicas e financeiras com substituição formal e isolamento de incógnitas.
  
--### Exemplo 1: Avaliar expressao
+-| Código | Significado | Resolucao |
+-|--------|-------------|-----------|
+-| -32600 | Parse error | Formato JSON invalido |
+-| -32601 | Method not found | Método inexistente; consulte lista de tools disponiveis |
+-| -32602 | Invalid parameters | Parâmetros invalidos; verifique tipos e estrutura |
+-| -32603 | Internal error | Erro interno do servidor; consulte logs |
+-| VALIDATION_ERROR | Erro de validação | Corrija os parâmetros conforme especificação |
++**Parâmetros:**
++- `formula_id`: Identificador da fórmula.
++- `substitutions`: Mapa de substituições de variáveis.
++- `solve_for`: Variável a resolver.
+ 
+----
 +**Resposta de sucesso:**
 +```json
 +{
@@ -388,295 +415,68 @@ index b1ac8a0..31af3f9 100644
 +}
 +```
  
--```bash
--curl -X POST http://localhost:8000/mcp/json-rpc \
--  -H "Content-Type: application/json" \
--  -d '{"jsonrpc":"2.0","method":"math_evaluate","params":{"expression":"(5 + 3) * 2"},"id":1}'
+-## Segurança e Rate Limiting
 +#### 13. `pattern_recognition`
-+
-+**Descri├º├úo:** Detec├º├úo de padr├Áes num├®ricos inteiros, rela├º├Áes de congru├¬ncia modular e consulta estruturada a padr├Áes da enciclopedia OEIS.
-+
-+**Par├ómetros:**
-+- `sequence` (array de inteiros): Sequ├¬ncia a analisar.
+ 
+-- **Rate Limit**: 100 requisições por minuto por IP
+-- **Autenticação**: Sem auth para desenvolvimento; tokens Bearer disponiveis para produção
+-- **HTTPS**: Obrigatório em produção; HTTP permitido apenas em localhost
+-- **CORS**: Configurado para localhost:8000 e render.com
++**Descrição:** Detecção de padrões numéricos inteiros, relações de congruência modular e consulta estruturada a padrões da enciclopedia OEIS.
+ 
+----
++**Parâmetros:**
++- `sequence` (array de inteiros): Sequência a analisar.
 +- `predict_next_terms` (integer, default: 3): Quantos termos seguintes prever.
-+
+ 
+-## Versionamento
 +**Resposta de sucesso:**
 +```json
 +{
 +  "jsonrpc":"2.0","result":{"success":true,"detected_pattern":"arithmetic_progression","common_difference":3,"next_terms":[8, 11, 14],"oeis_references":["A000027"]},
 +  "id":1
 +}
- ```
- 
--### Exemplo 2: Explicar conceito
-+#### 14. `crypto_secp256k1_ops` *(Sob Quarentena / Apenas Opera├º├Áes P├║blicas)*
- 
--```bash
--curl -X POST http://localhost:8000/mcp/json-rpc \
--  -H "Content-Type: application/json" \
--  -d '{"jsonrpc":"2.0","method":"math_explain","params":{"topic":"integral definida","level":"intermediate"},"id":2}'
-+**Descri├º├úo:** Opera├º├Áes em curva secp256k1 via `libsecp256k1` oficial: verifica├º├úo de assinaturas, confer├¬ncia de chaves p├║blicas e hashes. N├úo recebe chaves privadas via contexto de LLM.
-+
-+**Par├ómetros:**
-+- `operation` (`"verify_signature" | "pubkey_verify" | "tweak_add"`): Tipo de opera├º├úo.
-+- `public_key_hex`: Chave p├║blica em hexadecimal.
-+- `message_hash_hex`: Hash da mensagem em hexadecimal.
-+- `signature_hex`: Assinatura em hexadecimal.
-+
-+**Restri├º├Áes:** ├ë expressamente proibido enviar ou manipular chaves privadas diretamente no contexto de prompts dos LLMs. Apenas opera├º├Áes p├║blicas s├úo expostas.
-+
-+**Resposta de sucesso:**
-+```json
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"verified":true,"recovered_pubkey":"03abc123..."},"id":1
-+}
- ```
- 
--### Exemplo 3: Verificar resultado
-+#### 15. `dll_official_registry_lookup`
- 
--```bash
--curl -X POST http://localhost:8000/mcp/json-rpc \
--  -H "Content-Type: application/json" \
--  -d '{"jsonrpc":"2.0","method":"result_verify","params":{"expression":"derivada de x3","result":"3x2"},"id":3}'
-+**Descri├º├úo:** Consulta os reposit├│rios oficiais upstream de bibliotecas nativas, retornando tags de release est├íveis, commits, links seguros de download e hashes SHA-256.
-+
-+**Par├ómetros:**
-+- `library_name` (`"secp256k1" | "openblas" | "openssl" | "mpfr" | "gmp" | "all"`): Biblioteca alvo.
-+- `platform` (`"win_x64" | "linux_x86_64"`): Plataforma alvo.
-+
-+**Retorno:** Tags de release, hashes SHA-256, links de download verificados.
-+
-+**Resposta de sucesso:**
-+```json
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"library":"secp256k1","latest_release":"5.0.0","sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","download_url":"https://github.com/bitcoin-core/secp256k1/releases/download/v5.0.0/secp256k1-v5.0.0.tar.gz"},
-+  "id":1
-+}
- ```
- 
--### Exemplo 4: Perfilagem de memoria
-+#### 16. `dll_binary_audit`
- 
--```bash
--curl -X POST http://localhost:8000/mcp/json-rpc \
--  -H "Content-Type: application/json" \
--  -d '{"jsonrpc":"2.0","method":"memory_profile","params":{"operation":"calculus","duration_ms":5000},"id":4}'
-+**Descri├º├úo:** Realiza a inspe├º├úo est├ítica PE de bibliotecas locais: an├ílise de cabe├ºalhos, tabela de exporta├º├úo (EAT), importa├º├Áes e c├ílculo de hashes (`MD5`, `SHA-1`, `SHA-256`).
-+
-+**Par├ómetros:**
-+- `dll_path` (string): Caminho absoluto para a DLL/local bin├íria.
-+
-+**Retorno:** Resultado da inspe├º├úo PE com metadados de integridade.
-+
-+**Resposta de sucesso:**
-+```json
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"dll_path":"C:\\windows\\system32\\libsecp256k1.dll","architecture":"AMD64","exported_symbols":["secp256k1_ec_pubkey_create","secp256k1_ec_sign"],"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","pe_valid":true},
-+  "id":1
-+}
 +```
-+
-+#### 17. `dll_integrity_verify`
-+
-+**Descri├º├úo:** Compara a assinatura bin├íria da DLL local contra o manifesto oficial do reposit├│rio upstream, confirmando autenticidade ou altera├º├úo n├úo autorizada.
-+
-+**Par├ómetros:**
-+- `dll_path`: Caminho para a DLL local.
-+- `target_library`: Nome alvo do reposit├│rio upstream.
-+
-+**Retorno:** `authentic` (bool), `tampered` (bool), `verified_at` (timestamp), detalhes da assinatura.
-+
-+**Resposta de sucesso:**
-+```json
-+{
-+  "jsonrpc":"2.0","result":{"success":true,"authentic":true,"tampered":false,"verified_at":"2024-01-15T10:30:00Z","signature_status":"GPG verified by maintainers"},
-+  "id":1
-+}
- ```
  
- ---
- 
--## C├│digos de Erro
-+## 3. C├│digos de Erro Estruturados
- 
--| C├│digo | Significado | Resolucao |
--|--------|-------------|-----------|
--| -32600 | Parse error | Formato JSON invalido |
--| -32601 | Method not found | M├®todo inexistente; consulte lista de tools disponiveis |
--| -32602 | Invalid parameters | Par├ómetros invalidos; verifique tipos e estrutura |
--| -32603 | Internal error | Erro interno do servidor; consulte logs |
--| VALIDATION_ERROR | Erro de valida├º├úo | Corrija os par├ómetros conforme especifica├º├úo |
-+Todos os erros seguem o padr├úo estendido com `agent_hint` e `retryable`:
-+
-+| C├│digo | Significado | Resolu├º├úo | agente_hint | retryable |
-+|--------|-------------|-----------|-------------|-----------|
-+| -32600 | Parse error | Formato JSON inv├ílido | Verifique a estrutura da requisi├º├úo JSON | false |
-+| -32601 | Method not found | M├®todo inexistente | Consulte lista de tools dispon├¡veis via `tools/list` | false |
-+| -32602 | Invalid parameters | Par├ómetros inv├ílidos | Verifique tipos e estrutura conforme especifica├º├úo | depende |
-+| -32603 | Internal error | Erro interno do servidor | Consulte logs do servidor; reinicie se necess├írio | false |
-+| VALIDATION_ERROR | Erro de valida├º├úo | Corrija os par├ómetros conforme especifica├º├úo | Verifique restri├º├Áes de grammar, modo, precis├úo | depende |
-+| PRECISION_LIMIT_EXCEEDED | Precis├úo excedeu limite | Reduza a precis├úo para <= 1000 ou submeta via distributed_job_submit | "Reduza a precis├úo para <= 1000 ou submeta o c├ílculo via distributed_job_submit." | true |
-+| AST_SECURITY_VIOLATION | Viola├º├úo de seguran├ºa da gram├ítica | Remova identificadores n├úo autorizados ou reduza profundidade da AST para <= 20 n├¡veis | "Use apenas operadores whitelistados: +, -, *, /, ^, mod e fun├º├Áes: sin, cos, exp, log, sqrt, abs" | false |
-+| RESOURCE_LIMIT | Limite de recursos excedido | Reduzam carga ou submetam via distributed_job_submit | "Considere submetir este c├ílculo via distributed_job_submit para execu├º├úo ass├¡ncrona." | true |
- 
- ---
- 
--## Seguran├ºa e Rate Limiting
-+## 4. Seguran├ºa e Modelos de Isolamento
-+
-+### 4.1. Defesa em Profundidade com Quatro N├¡veis de Isolamento
-+
-+Todos os c├ílculos matem├íticos seguem modelo de seguran├ºa com 4 n├¡veis consecutivos:
-+
-+```
-+[Entrada de String do Agente de IA]
-+              Ôöé
-+              Ôû╝
-+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
-+Ôöé N├ìVEL 1: GRAM├üTICA FORMAL E PARSER MATEM├üTICO RESTRITO Ôöé
-+Ôöé ÔÇó Whitelist estrita de operadores (+, -, *, /, ^, mod) Ôöé
-+Ôöé ÔÇó Whitelist de fun├º├Áes (sin, cos, exp, log, sqrt, abs) Ôöé
-+Ôöé ÔÇó Rejei├º├úo imediata de identificadores n├úo autorizados Ôöé
-+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö¼ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
-+                              Ôöé
-+                              Ôû╝
-+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
-+Ôöé N├ìVEL 2: LIMITES ESTRITOS DE COMPLEXIDADE DE AST       Ôöé
-+Ôöé ÔÇó Profundidade m├íxima da ├írvore: 20 n├¡veis             Ôöé
-+Ôöé ÔÇó Quantidade m├íxima de n├│s sint├íticos: 500 n├│s         Ôöé
-+Ôöé ÔÇó Limite de magnitude de inteiros: 10^10000            Ôöé
-+Ôöé ÔÇó Limite de expoentes literais: m├íximo de 100.000      Ôöé
-+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö¼ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
-+                              Ôöé
-+                              Ôû╝
-+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
-+Ôöé N├ìVEL 3: ISOLAMENTO POR PROCESSO (SUBPROCESS / FORK)   Ôöé
-+Ôöé ÔÇó C├ílculos n├úo rodam na thread do servidor MCP         Ôöé
-+Ôöé ÔÇó Processos descart├íveis (Worker Pool isolado)         Ôöé
-+Ôöé ÔÇó Interrup├º├úo for├ºada garantida mesmo em loop nativo C Ôöé
-+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö¼ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
-+                              Ôöé
-+                              Ôû╝
-+ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
-+Ôöé N├ìVEL 4: LIMITES DE RECURSOS DO SISTEMA OPERACIONAL   Ôöé
-+Ôöé ÔÇó Linux: cgroups v2 e setrlimit (RLIMIT_CPU, RLIMIT_AS)Ôöé
-+Ôöé ÔÇó Windows: Windows Job Objects (Memory & Time Quotas)  Ôöé
-+Ôöé ÔÇó Timeout determin├¡stico com SIGKILL / TerminateJob    Ôöé
-+ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
-+```
-+
-+### 4.2. Quarentena de `ice_secp256k1.dll`
-+
-+A biblioteca `ice_secp256k1.dll` est├í em **quarentena estrita** de produ├º├úo:
-+
-+1. **Estado de Quarentena Estrita:** A `ice_secp256k1.dll` **N├âO** ├® carregada automaticamente pelo runtime, **N├âO** ├® empacotada em imagens Docker de produ├º├úo e **N├âO** executa opera├º├Áes criptogr├íficas para usu├írios finais.
-+2. **Backend Criptogr├ífico Homologado para Produ├º├úo:**
-+   - **Prim├írio:** `libsecp256k1` oficial do Bitcoin Core (`bitcoin-core/secp256k1`), compilada a partir de fonte verificada com assinaturas GPG de mantenedores e exposta via C-ABI est├ível.
-+   - **Complementar:** `OpenSSL 3.x` para primitivas de hash (SHA-256, RIPEMD-160), HMAC e gera├º├úo determin├¡stica de entropia.
-+3. **Escopo Restrito para Agentes de IA:**
-+   - ├ë expressamente proibido enviar ou manipular chaves privadas diretamente no contexto de prompts dos LLMs.
-+   - O cat├ílogo exp├Áe apenas ferramentas de verifica├º├úo p├║blica: verifica├º├úo de assinaturas ECDSA/Schnorr, valida├º├úo e deriva├º├úo de chaves p├║blicas, auditoria de integridade e hashes de dados.
-+   - N├úo h├í ferramentas para varredura de espa├ºo de chaves (*key hunting*) nem gera├º├úo desprotegida de carteiras.
- 
--- **Rate Limit**: 100 requisi├º├Áes por minuto por IP
--- **Autentica├º├úo**: Sem auth para desenvolvimento; tokens Bearer disponiveis para produ├º├úo
--- **HTTPS**: Obrigat├│rio em produ├º├úo; HTTP permitido apenas em localhost
--- **CORS**: Configurado para localhost:8000 e render.com
-+### 4.3. Rate Limiting e CORS
-+
-+- **Rate Limit:** 100 requisi├º├Áes por minuto por IP (padr├úo); 10 requisi├º├Áes/minuto para opera├º├Áes `HIGH`/`EXACT` mode.
-+- **Autentica├º├úo:** Sem auth para desenvolvimento; tokens Bearer dispon├¡veis para produ├º├úo via `MATHFORGE_API_TOKEN`.
-+- **HTTPS:** Obrigat├│rio em produ├º├úo; HTTP permitido apenas em localhost para desenvolvimento.
-+- **CORS:** Configurado para `localhost:8000` e `render.com`. Origens permitidas definidas em `MATHFORGE_CORS_ORIGINS`.
- 
- ---
- 
--## Versionamento
-+## 5. Versionamento e Compatibilidade
- 
--- Vers├úo Atual: 0.1.0
+-- Versão Atual: 0.1.0
 -- Data: 15 de janeiro de 2024
--- Especifica├º├úo JSON-RPC: 2.0
--- Compatibilidade: Vers├Áes anteriores mantidas por 12 meses
-+- **Vers├úo Atual:** 2.1.0-REV (Revis├úo Arquitetural Validada e Aprovada)
-+- **Data:** 15 de janeiro de 2024
-+- **Especifica├º├úo JSON-RPC:** 2.0
-+- **Compatibilidade:** Vers├Áes anteriores mantidas por 12 meses com flag `MATHFORGE_BACKWARD_COMPAT=1`
-+- **Ultima atualizacao:** 15 de janeiro de 2024 - Vers├úo 2.1.0-REV
+-- Especificação JSON-RPC: 2.0
+-- Compatibilidade: Versões anteriores mantidas por 12 meses
++#### 14. `distributed_job_status`
  
- ---
+----
++**Descrição:** Consulta o status de um emprego distribuído previamente submetido.
++
++**Parâmetros:**
++- `job_id`: Identificador do emprego distribuído.
++
++**Resposta de sucesso:**
++```json
++{
++  "jsonrpc":"2.0","result":{"success":true,"status":"completed","result":42,"completed_at":"2024-01-15T10:30:00Z"},
++  "id":1
++}
++```
  
 -## Ultima atualizacao
-+## 6. Exemplos de Chamada (STDIO Transport)
-+
-+```bash
-+# Iniciar gateway MCP via STDIO
-+python -m mcp.server --transport stdio
-+
-+# Exemplo: Avaliar express├úo via STDIO
-+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"math_evaluate","arguments":{"expression":"2 + 2 * 3"}}' | python -m mcp.server --transport stdio
-+
-+# Exemplo: Avaliar express├úo via Streamable HTTP
-+curl -X POST https://api.mathforge.dev/mcp \
-+  -H "Content-Type: application/json" \
-+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"math_evaluate","arguments":{"expression":"(5 + 3) * 2"}}}'
-+```
-+
-+## 7. Configura├º├úo de Ambiente
-+
-+### 7.1. Vari├íveis de Ambiente Obrigat├│rias
++#### 15. `memory_profile`
  
 -15 de janeiro de 2024
-+| Vari├ível | Descri├º├úo | Padr├úo |
-+|----------|-----------|--------|
-+| `MATHFORGE_TRANSPORT` | Modo de transporte (`stdio` ou `http`) | `stdio` |
-+| `MATHFORGE_DEFAULT_MODE` | Modo padr├úo de precis├úo (`FAST`, `HIGH`, `EXACT`, `AUTO`) | `AUTO` |
-+| `MATHFORGE_MAX_SYNC_DIGITS` | M├íximo d├¡gitos sincronos permitidos | `1000` |
-+| `MATHFORGE_QUARANTINE_ACTIVE` | Ativar modo de quarentena de DLLs | `1` |
-+| `MATHFORGE_CORS_ORIGINS` | Origens CORS permitidas (v├¡rgula-separadas) | `localhost:8000` |
-+| `MATHFORGE_API_TOKEN` | Token de autentica├º├úo para produ├º├úo | (vazio) |
-+| `MATHFORGE_LOG_LEVEL` | N├¡vel de logging | `INFO` |
++**Descrição:** Perfilamento de memória para operações de computação, reportando uso de heap, gc e vetores ativos.
  
 -Versao
-+### 7.2. Configura├º├úo Claude Desktop / Cursor
++**Parâmetros:**
++- `operation`: Tipo de operação de perfilamento.
++- `size`: Tamanho do vetor/operando.
++- `iterations`: Número de iterações.
  
 -0.1.0
 \ No newline at end of file
++**Resposta de sucesso:**
 +```json
 +{
-+  "mcpServers": {
-+    "mathforge": {
-+      "command": "python",
-+      "args": ["-m", "mcp.server"],
-+      "env": {
-+        "MATHFORGE_TRANSPORT": "stdio",
-+        "MATHFORGE_DEFAULT_MODE": "AUTO",
-+        "MATHFORGE_MAX_SYNC_DIGITS": "1000",
-+        "MATHFORGE_QUARANTINE_ACTIVE": "1"
-+      }
-+    }
-+  }
++  "jsonrpc":"2.0","result":{"success":true,"heap_usage_mb":45.2,"gc_count":12,"vector_size":1000},
++  "id":1
 +}
-+```
-+
-+### 7.3. Chamada Remota via Streamable HTTP (Spec Oficial)
-+
-+```bash
-+curl -X POST https://api.mathforge.dev/mcp \
-+  -H "Content-Type: application/json" \
-+  -d '{
-+    "jsonrpc": "2.0",
-+    "id": 1,
-+    "method": "tools/call",
-+    "params": {
-+      "name": "math_evaluate",
-+      "arguments": {
-+        "expression": "sum(1/k^2, k, 1, 10000)",
-+        "mode": "HIGH",
-+        "precision_digits": 80
-+      }
-+    }
-+  }'
 +```
 \ No newline at end of file
