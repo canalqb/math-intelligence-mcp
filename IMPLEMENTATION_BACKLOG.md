@@ -111,7 +111,7 @@ Tasks:
 - **Dia 3**: Configurar CI/CD no GitHub Actions (build, test, deploy)
 - **Dia 4**: Testar build local: `pip install -e .` e `python -m mimcp`
 - **Dia 5**: Preparar secret management - nao haver tokens hardcoded
-- **Dia 6**: Testar deploy no Render servico rnd_jSek47xZndoAKnhsjTLJVaxAmr12
+- **Dia 6**: Testar deploy no Render Web Service math-intelligence-mcp
 - **Dia 7**: Verificar endpoint JSON-RPC 2.0 apos deploy
 - **Dia 8**: Checkpoint end-of-week: deploy pronto + smoke test passando
 

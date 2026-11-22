@@ -12,7 +12,7 @@ A: atraves de endpoints JSON-RPC 2.0 via Streamable HTTP, com registro de tools 
 A: Cada camada tem um papel especifico: CLIENTE (agentes e interacao), GATEWAY (descoberta e roteamento), WORKER (computacao nativa em Rust), CORE (motores matematicos), VAL (verificacao independente) e RAZAO (output estruturado e analise de inconsistencias).
 
 **Q: Como fazer deploy?**  
-A: Deploy no servico Render rnd_jSek47xZndoAKnhsjTLJVaxAmr12 usando Docker multi-stage build. Build command: `pip install -e .`, start command: `python -m mimcp`. apos push no GitHub, deploy automatico ou manual via dashboard.
+A: Deploy no Render Web Service usando Python/FastAPI. Build command: `pip install -r requirements.txt`, start command: `python mimcp_server.py`. Após push no GitHub, o deploy é automático via Webhook.
 
 **Q: Quais tools estao em cada nivel?**  
 A: P0 (5 tools essenciais), P1 (5 tools avancadas), P2 (2 tools opcionais). Todas registradas em python/tools.py e expostas via JSON-RPC 2.0.
@@ -214,7 +214,7 @@ docker build -t math-intelligence-mcp .
 ### Passo 3: Deploy no Render
 
 Aceder dashboard em https://render.com/dashboard com token de acesso.
-Selecionar servico rnd_jSek47xZndoAKnhsjTLJVaxAmr12.
+Selecionar o serviço `math-intelligence-mcp`.
 Clicar "Manual Deploy" -> "Trigger deploy" com:
 - Build Command: `pip install -e .`
 - Start Command: `python -m mimcp`

@@ -9,7 +9,7 @@ Este projeto reimplementa as funcoes da biblioteca ice_secp256k1.dll em Rust pur
 Status Atual
 
 - Git history: Limpa (token removido via git filter-branch)
-- Deploy: Pendente no Render service rnd_jSek47xZndoAKnhsjTLJVaxAmr12
+- Deploy: Ativo no Render (Web Service)
 - MCP status: Em desenvolvimento, aguardando deploy
 - Coverage: Em andamento (target: 80%+)
 
@@ -21,7 +21,7 @@ TL;DR
 
 1. Framework MCP para agentes IA com 12 tools matematicas (P0-P2) via JSON-RPC 2.0
 2. Rust reimplementacao da ice_secp256k1.dll - multiplataforma, MIT license, sem dependencia de binarios proprietarios
-3. Deploy no Render em andamento - servico rnd_jSek47xZndoAKnhsjTLJVaxAmr12 aguardando push do GitHub canalqb/math-intelligence-mcp
+3. Deploy no Render ativo - Web Service integrado ao GitHub canalqb/math-intelligence-mcp
 
 ---
 
