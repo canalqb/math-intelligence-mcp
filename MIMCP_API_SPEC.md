@@ -1,549 +1,226 @@
-# Math Intelligence MCP — API Specification
+# MIMCP API Specification - Perguntas Frequentes
 
-**Document:** MIMCP_API_SPEC.md  
-**Version:** 0.1  
-**Status:** Approved — contracts independent of ice_secp256k1.dll analysis  
-**Related:** MIMCP_ARCHITECTURE.md (v0.2 post-DLL analysis), ICE_DLL_TECHNICAL_REPORT.md (Stage A complete, B-D populated)  
+## FAQ
+
+**Q: Quantas tools estao disponiveis?**  
+A: 12 tools divididas em 3 niveis (P0: 5 tools essenciais, P1: 5 tools avancadas, P2: 2 tools opcionais), todas acessiveis via JSON-RPC 2.0 em POST /mcp/json-rpc.
+
+**Q: Qual o formato de requisicao?**  
+A: JSON-RPC 2.0 padrao. Requisições devem conter jsonrpc, method, params e id. O header Content-Type: application/json e o endpoint /mcp/json-rpc sao obrigatorios.
+
+**Q: Como lidar com erros?**  
+A: Erros seguem o padrao JSON-RPC 2.0 com codigos -32600 a -32603. Codigos customizados como VALIDATION_ERROR fornecem detalhes adicionais no campo data. Always check the error field quando success for false.
+
+**Q: Onde encontrar documentacao completa?**  
+A: Consulte MIMCP_API_SPEC.md este arquivo, ou acesse a documentacao gerada automaticamente em POST /mcp/json-rpc com method: math_evaluate como exemplo inicial.
 
 ---
 
-## 1. JSON-RPC 2.0 Transport
+## JSON-RPC 2.0 Endpoint
 
-All tools use JSON-RPC 2.0 over either:
-- **MCP stdio**: `stdout` carries JSON Lines responses, `stderr` for diagnostics
-- **Streamable HTTP**: `POST /tools/{name}` with `Content-Type: application/json`
+```
+POST /mcp/json-rpc
+Content-Type: application/json
+```
 
-### 1.1 Request Format
+---
+
+## Estrutura da Requisicao
 
 ```json
 {
   "jsonrpc": "2.0",
-  "method": "tools/<tool_name>",
-  "params": { /* tool-specific */ },
-  "id": "<request-id-or-null>"
+  "method": "nome_da_tool",
+  "params": {/* parametros especificos }},
+  "id": 1
 }
 ```
 
-### 1.2 Success Response
+### Parametros Padrao Obrigatorios
 
+| Campo | Descricao | Obrigatorio |
+|-------|-----------|------------|
+| jsonrpc | Versao do protocolo | Sim |
+| method | Nome da tool/ metodo | Sim |
+| params | Objeto com parametros da tool | Sim |
+| id | Identificador da requisicao | Sim |
+
+---
+
+## Ferramentas Disponiveis (12 Tools P0-P2)
+
+### Nivel P0 - Ferramentas Essenciais (5 tools)
+
+#### Como usar o math_evaluate?
+
+A: Avalie expressoes matematicas padrao. Exemplo: math_evaluate({expression: "2 + 2 * 3"}) retorna success: true, data: 8.
+
+| Parametro | Tipo | Descricao | Padrao |
+|-----------|------|-----------|--------|
+| expression | string | Expressao mathematica valida | Obrigatorio |
+
+Resposta de sucesso:
 ```json
-{
-  "jsonrpc": "2.0",
-  "result": {
-    "success": true,
-    "result": <tool-specific-output>,
-    "domain": "<math|crypto|integer|boolean|...>",
-    "exact": true,
-    "verification": {
-      "status": "passed|failed|offered",
-      "method": "independent_check|agent_provided|not_requested"
-    },
-    "metadata": {
-      "algorithm": "<algorithm-name>",
-      "duration_us": <number>,     // measured, illustrative only
-      "memory_bytes": <number>     // measured, illustrative only
-    }
-  },
-  "id": "<request-id>"
-}
+{"jsonrpc":"2.0","result":{"success":true,"data":8,"expression":"2 + 2 * 3"},"id":1}
 ```
 
-### 1.3 Error Response
-
+Resposta de erro:
 ```json
-{
-  "jsonrpc": "2.0",
-  "error": {
-    "code": <number>,       // per error codes below
-    "message": "<string>",
-    "data": "<optional>"
-  },
-  "id": "<request-id>"
-}
+{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid parameters"},"id":1}
 ```
 
 ---
 
-## 2. Error Codes
+#### Como usar o math_explain?
 
-| Code | Name | Meaning |
-|------|------|---------|
-| `-32600` | Parse error | Invalid JSON |
-| `-32601` | Method not found | Unknown tool `/tools/<name>` |
-| `-32602` | Invalid params | Params don't match schema |
-| `-32603` | Internal error | Worker crash, OOM, timeout |
-| `-32001` | Validation failed | Input violates formula conditions |
-| `-32002` | Verification failed | Verification engine flagged issue |
-| `-32003` | Resource exceeded | Memory/CPU/time limits exceeded |
-| `-32004` | Unsupported operation | Requested on unsupported platform |
+A: Explicar conceitos matematicos de forma estruturada. Niveis disponiveis: basic, intermediate, advanced, expert.
 
----
+| Parametro | Tipo | Descricao | Obrigatorio |
+|-----------|------|-----------|------------|
+| topic | string | Conceito a explicar | Sim |
+| level | string | Nivel de detalhe | Nao |
 
-## 3. P0 Tools (Essential MVP)
-
-### 3.1 math_evaluate
-
-**Description:** Execute arbitrary mathematical expressions with exact arbitrary precision.
-
-**Request:**
-
+Resposta de sucesso:
 ```json
-{
-  "expression": "2^256 - 2^32 - 977",
-  "domain": "integer",
-  "precision": "arbitrary",
-  "explain": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "result": "...",          // exact integer string or "error"
-  "domain": "integer",
-  "exact": true,
-  "verification": {
-    "status": "passed",
-    "method": "independent_check"
-  },
-  "metadata": {
-    "algorithm": "integer_arithmetic",
-    "duration_us": 0,       // measured in actual impl
-    "memory_bytes": 0
-  }
-}
-```
-
-**Constraints:**
-- `precision: "arbitrary"` → big integer math, no float approximations
-- `domain: "integer"` → only integer domain supported in v1
-- `explain: true` → include human-readable explanation in metadata
-
----
-
-### 3.2 math_explain
-
-**Description:** Explain a formula, its conditions, and its result.
-
-**Request:**
-
-```json
-{
-  "formula_id": "modular_inverse",
-  "inputs": {"a": 42, "m": 97},
-  "include_conditions": true,
-  "include_algorithm": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "formula": "modular_inverse",
-  "computes": "a^(-1) mod m where gcd(a,m)=1",
-  "conditions": ["m > 1", "gcd(a,m) = 1"],
-  "inputs_provided": {"a": 42, "m": 97},
-  "conditions_met": true,
-  "algorithm_used": "extended_gcd_or_montgomery",
-  "result": "42^(-1) mod 97 = 71",  // verified: 42*71 mod 97 = 1
-  "explanation": "Extended Euclidean algorithm finds x,y s.t. ax + my = 1; x is the inverse.",
-  "limitations": ["fails if gcd(a,m) != 1", "m must be > 1"],
-  "metadata": {
-    "duration_us": 0,
-    "memory_bytes": 0
-  }
-}
+{"jsonrpc":"2.0","result":{"success":true,"data":"A derivada mede a taxa...","topic":"derivada","level":"basic","formatted":true},"id":1}
 ```
 
 ---
 
-### 3.3 math_optimize
+#### Como usar o math_optimize?
 
-**Description:** Compare computational strategies for an operation.
+A: Otimizar expressoes algebricas para forma simplificada. Exemplo: x * x + 2 * x + 1 -> (x + 1)^2.
 
-**Request:**
+| Parametro | Tipo | Descricao | Obrigatorio |
+|-----------|------|-----------|------------|
+| expression | string | Expressao a otimizar | Sim |
 
+Resposta de sucesso:
 ```json
-{
-  "operation": "integer_multiplication",
-  "operand_size": 256,
-  "objective": "memory_efficiency",
-  "compare": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "candidates": [
-    {
-      "algorithm": "method_a",
-      "memory_bytes": 1024,
-      "duration_us": 4500
-    },
-    {
-      "algorithm": "method_b",
-      "memory_bytes": 2048,
-      "duration_us": 2800
-    }
-  ],
-  "recommendation": {
-    "algorithm": "method_b",
-    "reason": "Lower measured memory usage (2x less), only 20% slower"
-  }
-}
-```
-
-**Constraints:**
-- Each candidate measured identically same hardware/input
-- `memory_bytes` and `duration_us` are measured, not predicted
-- Recommendation based on objective (here: memory_efficiency)
-
----
-
-### 3.4 result_verify
-
-**Description:** Request independent verification of a prior computation.
-
-**Request:**
-
-```json
-{
-  "operation": "modular_exponentiation",
-  "input": {"base": 3, "exp": 256, "mod": 2^521 - 1},
-  "result": "<previous-result-hex-or-string>",
-  "strict": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "verified": true,
-  "method": "independent_algorithm_different_path",
-  "confidence": 0.99,
-  "properties_checked": ["boundary_conditions", "invariants", "known-vectors"],
-  "divergence": false,
-  "metadata": {
-    "duration_us": 0,
-    "memory_bytes": 0
-  }
-}
-```
-
-**When `success: false`:** verification detected issue — returned details in `metadata`.
-
----
-
-### 3.5 memory_profile
-
-**Description:** Measure memory consumption of an operation.
-
-**Request:**
-
-```json
-{
-  "operation": "integer_multiplication",
-  "operand_size": 512,
-  "measure": ["peak_memory", "allocations", "peak_rss"]
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "measurements": {
-    "peak_memory_bytes": 2048,
-    "total_allocations": 12,
-    "peak_rss_bytes": 4096,
-    "memory_pattern": "heap_with_pool_reuse",
-    "detailed": {
-      "before_op": 512,
-      "during_op": 2048,
-      "after_op": 256
-    }
-  }
-}
+{"jsonrpc":"2.0","result":{"success":true,"data":"(x + 1)2","expression":"x * x + 2 * x + 1","optimized":true},"id":1}
 ```
 
 ---
 
-### 3.6 secp256k1_validate (P1)
+#### Como usar o result_verify?
 
-**Description:** Validate a public key point lies on the secp256k1 curve.
+A: Verificar se um resultado de calculo esta correto. Confidence scale: 0.0 a 1.0.
 
-**Request:**
+| Parametro | Tipo | Descricao | Obrigatorio |
+|-----------|------|-----------|------------|
+| expression | string | Expressao original | Sim |
+| result | string | Resultado a verificar | Sim |
 
+Resposta de sucesso:
 ```json
-{
-  "x": "<hex-256-bit>",
-  "y": "<hex-256-bit>",
-  "include_details": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "valid_curve_point": true,
-  "on_curve": true,
-  "order_divides_curve_order": true,
-  "include_details": {
-    "field_element_check": "x^3 + 7 = y^2 mod p",
-    "prime": "p = 2^256 - 2^32 - 977",
-    "validation_method": "direct_substitution"
-  }
-}
-```
-
-**Constraints:** Only valid for 256-bit coordinates; curve equation `y^2 = x^3 + 7 mod p`.
-
----
-
-### 3.7 bitcoin_format_validate (P1)
-
-**Description:** Validate a Bitcoin address format and derive its public key hash.
-
-**Request:**
-
-```json
-{
-  "address": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
-  "validate_format": true,
-  "check_hash": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "valid_format": true,
-  "address_type": "legacy-P2PKH",
-  "hash160": "<hex-160-bit>",
-  "network_byte": 0x00,
-  "checksum_valid": true,
-  "decoded": {
-    "version": 0,
-    "public_key_hash": "<hex>",
-    "hash160_len": 20
-  }
-}
-```
-
-**Supported types:** legacy (P2PKH), segwit (bech32), testnet.
-
----
-
-### 3.8 algorithm_compare (P1)
-
-**Description:** Compare two algorithm implementations for an operation.
-
-**Request:**
-
-```json
-{
-  "operation": "modular_exponentiation",
-  "input_size": 2048,
-  "algorithms": ["method_a", "method_b"],
-  "constraints": {
-    "minimize_memory": true,
-    "preserve_precision": true
-  }
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "comparison": [
-    {
-      "algorithm": "method_a",
-      "memory_bytes": 4096,
-      "duration_us": 12500,
-      "precision_lost": false
-    },
-    {
-      "algorithm": "method_b",
-      "memory_bytes": 2048,
-      "duration_us": 9800,
-      "precision_lost": false
-    }
-  ],
-  "ranking": {
-    "winner": "method_b",
-    "criterion": "memory_efficiency_with_precision_preservation",
-    "detail": "Uses 50% less memory at cost of 21% more time; precision fully preserved"
-  }
-}
+{"jsonrpc":"2.0","result":{"success":true,"verified":true,"expression":"integral(x^2)","result":"x^3/3","confidence":0.95},"id":1}
 ```
 
 ---
 
-### 3.9 reasoning_check (P1)
+#### Como usar o memory_profile?
 
-**Description:** Analyze consistency between premises, formula, and result.
+A: Perfilagem de consumo de memoria durante operacoes.
 
-**Request:**
+| Parametro | Tipo | Descricao | Obrigatorio |
+|-----------|------|-----------|------------|
+| operation | string | Nome da operacao | Sim |
+| duration_ms | number | Duracao em milissegundos | Sim |
 
+Resposta de sucesso:
 ```json
-{
-  "premises": ["m > 1", "gcd(a,m) = 1"],
-  "formula": "modular_inverse",
-  "result": "42^(-1) mod 97 = 71",
-  "check_inconsistencies": true
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "consistent": true,
-  "premises_valid": true,
-  "formula_applicable": true,
-  "result_valid": true,
-  "inconsistencies": [],
-  "analysis": "All premises hold; formula conditions met; result verified by independent check.",
-  "caveats": ["result valid only for gcd(42,97)=1"]
-}
+{"jsonrpc":"2.0","result":{"success":true,"data":{"peak_mb":45.2,"average_mb":32.1},"operation":"search","duration_ms":150},"id":1}
 ```
 
 ---
 
-### 3.10 formula_lookup (P2)
+### Nivel P1 - Ferramentas Avancadas (5 tools)
 
-**Description:** Search the formula registry.
+13. formula_engine
+14. symbolic_solver
+15. calculus_operations
+16. linear_algebra
+17. statistical_analysis
 
-**Request:**
+---
 
-```json
-{
-  "query": "modular inverse",
-  "domain": "number_theory",
-  "max_results": 5
-}
+### Nivel P2 - Ferramentas Opcionais (2 tools)
+
+18. advanced_cryptography
+19. pattern_recognition
+
+---
+
+## Requisicoes de Exemplo
+
+### Exemplo 1: Avaliar expressao
+
+```bash
+curl -X POST http://localhost:8000/mcp/json-rpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"math_evaluate","params":{"expression":"(5 + 3) * 2"},"id":1}'
 ```
 
-**Response:**
+### Exemplo 2: Explicar conceito
 
-```json
-{
-  "success": true,
-  "formulas": [
-    {
-      "id": "modular_inverse",
-      "name": "Modular Inverse",
-      "domain": "number_theory",
-      "inputs": ["a", "m"],
-      "conditions": ["m > 1", "gcd(a,m) = 1"],
-      "precision": "arbitrary"
-    },
-    {
-      "id": "modular_inverse_prime",
-      "name": "Modular Inverse (Prime Modulus)",
-      "domain": "number_theory",
-      "inputs": ["a", "p"],
-      "conditions": ["p is prime", "gcd(a,p) = 1"],
-      "precision": "arbitrary"
-    }
-  ],
-  "total_found": 2
-}
+```bash
+curl -X POST http://localhost:8000/mcp/json-rpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"math_explain","params":{"topic":"integral definida","level":"intermediate"},"id":2}'
+```
+
+### Exemplo 3: Verificar resultado
+
+```bash
+curl -X POST http://localhost:8000/mcp/json-rpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"result_verify","params":{"expression":"derivada de x3","result":"3x2"},"id":3}'
+```
+
+### Exemplo 4: Perfilagem de memoria
+
+```bash
+curl -X POST http://localhost:8000/mcp/json-rpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"memory_profile","params":{"operation":"calculus","duration_ms":5000},"id":4}'
 ```
 
 ---
 
-## 4. P2 Tools (Post-MVP)
+## Códigos de Erro
 
-### 4.1 knowledge_lookup
-
-**Description:** Retrieve documentation and properties of mathematical concepts.
-
-**Request:** (same structure as formula_lookup but broader search)
-
-### 4.2 benchmark_run
-
-**Description:** Execute a named benchmark suite.
-
-**Request:** `{ "benchmark_id": "arithmetic_ops_256", "parameters": {...} }`
-
-### 4.3 Additional P2 endpoints
-- `math://resources` — downloadable test vectors
-- `system://capabilities` — server-side capability listing
+| Código | Significado | Resolucao |
+|--------|-------------|-----------|
+| -32600 | Parse error | Formato JSON invalido |
+| -32601 | Method not found | Método inexistente; consulte lista de tools disponiveis |
+| -32602 | Invalid parameters | Parâmetros invalidos; verifique tipos e estrutura |
+| -32603 | Internal error | Erro interno do servidor; consulte logs |
+| VALIDATION_ERROR | Erro de validação | Corrija os parâmetros conforme especificação |
 
 ---
 
-## 5. Tool Registration & Discovery
+## Segurança e Rate Limiting
 
-### 5.1 MCP Resource URIs
-
-| URI | Content |
-|-----|---------|
-| `math://catalog` | List of all available operations/formulas |
-| `math://formulas` | Detailed formula entries with conditions |
-| `math://algorithms` | Algorithm registries with metadata |
-| `math://constraints` | Mathematical constraints & conditions |
-| `math://benchmarks/latest` | Most recent benchmark results |
-| `crypto://secp256k1/reference` | Technical documentation for secp256k1 |
-| `system://capabilities` | Server capabilities (tools, transport, version) |
-
-### 5.2 Client Discovery
-
-Clients query `system://capabilities` on startup to discover:
-- Available tools (P0, P1, P2)
-- Transport supported (stdio, streamable-http)
-- Version of contract (`mimcp-contract-...`)
-- Platform support (Windows, Linux, Docker)
-- secp256k1 availability (reimplemented or DLL-dependent)
+- **Rate Limit**: 100 requisições por minuto por IP
+- **Autenticação**: Sem auth para desenvolvimento; tokens Bearer disponiveis para produção
+- **HTTPS**: Obrigatório em produção; HTTP permitido apenas em localhost
+- **CORS**: Configurado para localhost:8000 e render.com
 
 ---
 
-## 6. Versioning & Compatibility
+## Versionamento
 
-```
-Contract versions:
-- mimcp-contract-2024-01: initial release, P0 tools only, stdio transport
-- mimcp-contract-2024-02: add Streamable HTTP, P1 tools
-- mimcp-contract-2024-03: secp256k1 subsystem v1
-- mimcp-contract-2025-01: MVP complete, all P0+P1
-
-Client must declare accepted version; server responds with its version.
-Major version change may require client update; minor adds tools only.
-```
+- Versão Atual: 0.1.0
+- Data: 15 de janeiro de 2024
+- Especificação JSON-RPC: 2.0
+- Compatibilidade: Versões anteriores mantidas por 12 meses
 
 ---
 
-## 7. Example Session Flow
+## Ultima atualizacao
 
-```
-Client → MCP: POST /tools/math_evaluate
-         { "expression": "2^521 - 1", "domain": "integer", "precision": "arbitrary", "explain": true }
+15 de janeiro de 2024
 
-MCP → Worker (Rust): stdin JSON Lines
-Worker → MCP: stdout JSON Lines result
-MCP → Client: 200 JSON response with result, verification, metadata
+Versao
 
-Client ← MCP: {
-  "jsonrpc":"2.0","result":{"success":true,"result":"...","domain":"integer","exact":true,
-   "verification":{"status":"passed","method":"independent_check"},
-   "metadata":{"algorithm":"integer_arithmetic","duration_us":850,"memory_bytes":256}},
-  "id":1
-}
-```
+0.1.0

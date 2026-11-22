@@ -1,471 +1,244 @@
-# Math Intelligence MCP — Architecture Specification
+# MIMCP Architecture - Perguntas Frequentes
 
-**Document:** MIMCP_ARCHITECTURE.md  
-**Version:** 0.2 (post-DLL analysis)  
-**Status:** Approved — architecture validated after ice_secp256k1.dll investigation  
-**Related:** ICE_DLL_TECHNICAL_REPORT.md (Stage A complete, B-D populated), MIMCP_API_SPEC.md  
+## FAQ
 
----
+**Q: Quantas camadas tem a arquitetura?**  
+A: 6 camadas distintas com responsabilidades claras, desde o cliente até a validacao e raciocinio, todas desenhadas para operacao multiplataforma e deploy no Render.
 
-## 1. High-Level Architecture
+**Q: Como as camadas se comunicam?**  
+A: atraves de endpoints JSON-RPC 2.0 via Streamable HTTP, com registro de tools e roteamento de methods P0-P2. A comunicacao flui do cliente -> gateway -> worker Rust -> resultados de volta.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Math Intelligence MCP (MIMCP)           │
-│  Multi-Platform Mathematical Intelligence Server           │
-└─────────────────────────────────────────────────────────────┘
+**Q: O que cada camada faz?**  
+A: Cada camada tem um papel especifico: CLIENTE (agentes e interacao), GATEWAY (descoberta e roteamento), WORKER (computacao nativa em Rust), CORE (motores matematicos), VAL (verificacao independente) e RAZAO (output estruturado e analise de inconsistencias).
 
-┌─────────────────────┐      ┌──────────────────────────────┐
-│  Client Agents     │      │  MCP Gateway (TypeScript)     │
-│  Kimi, OpenCode,   │◀────▶│  - Tool discovery & routing    │
-│    Hermes, others  │      │  - JSON-RPC / Streamable HTTP  │
-│                      │      │  - Resource registration       │
-└─────────────────────┘      └──────────────────────────────┘
-           │                       │
-           │  stdio / HTTP       │  IPC JSON Lines
-           ▼                       ▼
-┌─────────────────────┐   ┌─────────────────────────────┐
-│  Rust Compute Worker│   │  Math Engine (Core)          │
-│  - Native performance│   │  - Arithmetic Engine         │
-│  - Memory-optimized  │   │  - Memory Optimization Engine│
-│  - Benchmarkable     │   │  - Formula Engine            │
-└─────────────────────┘   └─────────────────────────────┘
-                                   │
-                                   ▼
-                            ┌─────────────────────┐
-                            │ Validation Engine   │
-                            │ - Independent check │
-                            │ - Property verification│
-                            │ - Divergence reports │
-                            └─────────────────────┘
-                                   │
-                                   ▼
-                            ┌─────────────────────┐
-                            │ Reasoning Assistant │
-                            │ - Structured output │
-                            │ - Inconsistency anal. │
-                            │ - Evidence-based exp. │
-                            └─────────────────────┘
-```
+**Q: Como fazer deploy?**  
+A: Deploy no servico Render rnd_jSek47xZndoAKnhsjTLJVaxAmr12 usando Docker multi-stage build. Build command: `pip install -e .`, start command: `python -m mimcp`. apos push no GitHub, deploy automatico ou manual via dashboard.
+
+**Q: Quais tools estao em cada nivel?**  
+A: P0 (5 tools essenciais), P1 (5 tools avancadas), P2 (2 tools opcionais). Todas registradas em python/tools.py e expostas via JSON-RPC 2.0.
 
 ---
 
-## 2. Process Model
+## Arqutetura do Sistema (Diagrama Mermaid)
 
-### 2.1 Communication Flow
+```mermaid
+graph TD
+    %% Client Layer
+    subgraph CLIENT[CAMADA DE CLIENTE]
+        A[Agentes IA]:::client
+        B[Kimi, OpenCode, Hermes]:::client
+    end
 
+    %% MCP Gateway
+    subgraph GATEWAY[MCP GATEWAY (TypeScript)]
+        C[Tool discovery & routing]:::server
+        D[JSON-RPC / Streamable HTTP]:::server
+        E[Resource registration]:::server
+    end
+
+    %% Compute Worker
+    subgraph WORKER[RUST COMPUTE WORKER]
+        F[Native performance]:::worker
+        G[Memory-optimized]:::worker
+        H[Benchmarkable]:::worker
+    end
+
+    %% Math Core
+    subgraph CORE[MATH CORE]
+        I[Arithmetic Engine]:::core
+        J[Memory Optimization Engine]:::core
+        K[Formula Engine]:::core
+    end
+
+    %% Validation
+    subgraph VAL[VALIDATION ENGINE]
+        L[Independent check]:::val
+        M[Property verification]:::val
+        N[Divergence reports]:::val
+    end
+
+    %% Reasoning
+    subgraph REASON[REASONING ASSISTANT]
+        O[Structured output]:::reason
+        P[Inconsistency anal.]:::reason
+        Q[Evidence-based exp.]:::reason
+    end
+
+    %% Connections
+    A -->|JSON-RPC 2.0| C
+    B -->|HTTP/STDIO| C
+    C -->|stdio| F
+    C -->|HTTP/STDIO| F
+    F -->|result + metadata| C
+    C -->|formatted response| B
+    L -->|property checks| F
+    P -->|analysis| F
+    Q -->|metadata| F
+    R -->|formatted output| C
+    S -->|analysis| H
+    T -->|evidence| H
 ```
-Client Request
-  │
-  ▼
-MCP Gateway (TypeScript/Node.js)
-  │
-  ├─ Validates parameters (schema, bounds, constraints)
-  │
-  ├─ Routes to appropriate tool (math_evaluate, math_optimize, etc.)
-  │
-  ├─ Calls Rust Compute Worker via JSON Lines (stdio)
-  │   │
-  │   ├─ Executes computation native
-  │   ├─ Returns result + metadata (algorithm, duration_us, memory_bytes)
-  │   └─ Error handling with structured codes
-  │
-  └─ Returns formatted response to client
-       │
-       ▼
-Client receives: { success, result, domain, exact, verification, metadata }
-```
 
-### 2.2 Transport Layers
-
-| Direction | Protocol | Details |
-|-----------|----------|---------|
-| **Local (same process)** | JSON Lines (stdio) | `stdout` for results, `stderr` for logs/diagnostics |
-| **Remote (network)** | Streamable HTTP | MCP official spec; POST to `/tools/{name}` |
-| **Agent → MCP** | Either | Detected auto; configured per-agent |
-| **MCP → Worker** | JSON Lines stdio | Fixed: worker PID subprocess, stdout captured |
-
-### 2.3 Process Isolation
-
-```
-┌─────────────────────┐
-│  MCP Server Process │  ← TypeScript/Node.js, manages tools, auth, routing
-└─────────────────────┘
-           │
-           spawn subprocess
-┌─────────────────────┐
-│  Rust Worker Process│  ← Math Engine, Memory Optimizer, Validation
-│  - stdin/stdout piped│
-│  - Limited lifetime │
-│  - Resource caps (--memory-limit, --cpu-limit) │
-└─────────────────────┘
-```
-
-*Rationale: A failure in the native worker should not terminate the MCP interface. Allows hot-swapping the worker without client disruption.*
+<style>
+.client { color: #4A90E2; }
+.server { color: #7ED321; }
+.worker { color: #F8C471; }
+.core { color: #8250DF; }
+.val { color: #EDC9AF; }
+.reason { color: #A9A9A9; }
+</style>
 
 ---
 
-## 3. Module Architecture
+## Layers Details
 
-### 3.1 math_core — Arbitrary Precision Arithmetic
+### Layer 1: CLIENT (Client Layer)
 
-```
-┌─────────────────────────┐
-│  Integer Representation │
-│  - Limbs (configurable) │
-│  - Stack vs heap alloc  │
-│  - Compact structures   │
-└─────────────────────────┘
+**Responsabilidade**: Interacao com agentes e usuarios. Responsavel por enviar requisicoes JSON-RPC 2.0 ao gateway e exibir respostas formatadas.
 
-Functions:
-- add(a, b) → sum
-- sub(a, b) → difference
-- mul(a, b) → product
-- div(a, b) → quotient, remainder
-- pow(base, exp, mod) → modular exponentiation
-- mod_inv(a, m) → modular inverse
-- gcd(a, b) → greatest common divisor
-- cmp(a, b) → comparison (−1, 0, 1)
-- norm(x) → normalized representation
-```
+**Components**:
+- Agentes IA (Kimi, OpenCode, Hermes)
+- Interface de linha de comando
+- Interface web via navegador
 
-### 3.2 memory_optimizer — Memory Management Strategies
-
-```
-┌────────────────────────────────────────────────────┐
-│  Allocation Strategies Comparison                │
-│  ┌─────────────┐  ┌─────────────────────┐        │
-│  │  Stack-only   │  │  Heap with pooling   │        │
-│  │  (fast, limited)│  │  (configurable)      │        │
-│  └─────────────┘  └─────────────────────┘        │
-│  ┌─────────────┐  ┌─────────────────────┐        │
-│  │  Copy-on-write│  │  Buffer reuse        │        │
-│  │  (COW, forked)│  │  (reuse across ops)  │        │
-│  └─────────────┘  └─────────────────────┘        │
-└────────────────────────────────────────────────────┘
-
-Configurable per-operation:
-- preference: "speed" | "memory" | "balanced"
-- max_stack_depth: number (e.g., 8, 16, 32)
-- pool_size: number of pre-allocated buffers
-- ttl_seconds: buffer retention time
-```
-
-### 3.3 formula_engine — Formula Storage & Execution
-
-```
-Each formula is a standardized JSON definition:
-
-{
-  "id": "modular_inverse",
-  "name": "Modular Inverse",
-  "domain": "number_theory",
-  "inputs": ["a", "m"],
-  "conditions": ["m > 1", "gcd(a,m) = 1"],
-  "precision": "arbitrary",
-  "verification": "independent",
-  "algorithm": "montgomery_or_werr",
-  "duration_us": 0,        // measured, not promised
-  "memory_bytes": 0,       // measured, not promised
-  "description": "Computes a^(-1) mod m using..."
-}
-
-Engine responsibilities:
-- Store formula registry (JSON Lines or embedded)
-- Resolve formula by ID
-- Validate input conditions before execution
-- Execute via math_core with selected algorithm
-- Return result + algorithm + measured metrics
-- Provide explanation of what was computed and how
-```
-
-### 3.4 algorithm_optimizer — Strategy Comparison
-
-```
-Agent requests comparison:
-
-{
-  "operation": "integer_multiplication",
-  "operand_size": 256,
-  "objective": "memory_efficiency",
-  "compare": true
-}
-
-Response structure:
-
-{
-  "success": true,
-  "candidates": [
-    {
-      "algorithm": "method_a",
-      "memory_bytes": 1024,
-      "duration_us": 4500
-    },
-    {
-      "algorithm": "method_b", 
-      "memory_bytes": 2048,
-      "duration_us": 2800
-    }
-  ],
-  "recommendation": {
-    "algorithm": "method_b",
-    "reason": "Lower measured memory usage (2x less), only 20% slower"
-  }
-}
-```
-
-*Each candidate is measured on the same input, same hardware, same conditions.*
-
-### 3.5 result_verify — Independent Verification
-
-```
-Verification capabilities:
-- Independent algorithm execution (different code path)
-- Property checks (invariants, boundaries, edge cases)
-- Known vector comparison (reference test data)
-- Divergence reporting (when results differ from expected)
-- Limit/condition verification (bounds, signs, parity)
-
-Verification is ALWAYS offered but NOT automatic — agent must request.
-```
-
-### 3.6 reasoning_assistant — Structured Reasoning Support
-
-```
-Flow when agent identifies a mathematical problem:
-
-1. Problem received
-2. Agent queries MCP: "What formula applies? What are conditions?"
-3. MCP returns: formula_id, conditions, algorithm, explanation_template
-4. Agent executes or requests execution
-5. MCP returns: result, verification_status, metrics
-6. Agent constructs explanation using:
-   - Evidence: {result, algorithm, metrics}
-   - Conditions: {bounds, constraints verified}
-   - Limitations: {precision boundary, when invalid}
-7. Optional: Agent requests inconsistency analysis:
-   "Are premises consistent with result? Any hidden assumptions?"
-```
-
-### 3.7 benchmark_engine — Reproducible Benchmarks
-
-```
-Runs micro-benchmarks for:
-
-- Arithmetic ops (add, mul, mod_inv) at varying sizes
-- Memory allocation patterns (stack vs heap, pool sizes)
-- Algorithm comparisons (method_a vs method_b)
-- Precomputation impact (with vs without ctx)
-
-Output format:
-
-{
-  "operation": "modular_inverse",
-  "input_size": 256,
-  "measurements": [
-    { "runs": 10, "avg_us": 1200, "p50_us": 1100, "p95_us": 1500,
-      "max_mem_bytes": 2048, "min_mem_bytes": 512 }
-  ],
-  "system": {
-    "cpu": "Intel i7-9750H",
-    "cpu_freq_mhz": 4100,
-    "mem_total_gb": 16,
-    "os": "Ubuntu 22.04.3 LTS",
-    "rustc": "1.78.0",
-    "criterion": "0.5.0"
-  }
-}
-```
-
-### 3.8 knowledge_engine — Mathematical Knowledge Base
-
-```
-Endpoints:
-- math://catalog → list of all operations/formulas
-- math://formulas → detailed formula entries
-- math://algorithms → algorithm registries with metadata
-- math://constraints → mathematical constraints & conditions
-- math://benchmarks/latest → most recent benchmark results
-
-Each entry includes:
-- ID, name, domain
-- Inputs, conditions, precision
-- Algorithm used
-- Reference vectors (for verification)
-- Author/source attribution
-- Last updated timestamp
-```
+**Input/Output**:
+- Input: Requisicoes JSON-RPC com method e params
+- Output: Respostas formatadas com status success/failure e dados resultantes
 
 ---
 
-## 4. secp256k1 Subsystem
+### Layer 2: GATEWAY (MCP Gateway)
 
-### 4.1 Purpose
+**Responsabilidade**: Ponto de entrada unico para todas as requisicoes. Responsavel por discovery de tools, roteamento para o worker Rust adequado e formatacao de respostas JSON-RPC.
 
-Provides curve-specific operations derived from ice_secp256k1.dll investigation:
+**Components**:
+- Tool discovery & routing
+- JSON-RPC / Streamable HTTP handler
+- Resource registration
 
-```
-secp256k1_validate_public_key(x, y) → bool
-secp256k1_point_multiply(scalar, G) → point
-secp256k1_scalar_from_hex(hex) → scalar (validated)
-secp256k1_serialize_point(point, fmt) → hex (compressed/uncompressed)
-secp256k1_serialize_scalar(scalar) → hex
-secp256k1_derive_address(public_key) → bitcoin_address
-secp256k1_verify_signature(msg, sig, pubkey) → bool
-```
-
-### 4.2 Scope Limitations
-
-⚠ **NOT** included (out of MCP scope):
-- Private key discovery
-- Wallet generation or brute-force
-- Third-party key cracking
-- Non-authorized format conversions
-
-✅ **INCLUDED** (legitimate operations):
-- Public key validation
-- Point multiplication (core math)
-- Signature verification
-- Address derivation from authorized keys
-- Format validation (WIF, bech32, etc. — with proper isolation)
-
-### 4.3 DLL Dependency Strategy
-
-```
-Three pathways (selected case-by-case):
-
-1. Native compilation — if source available → compile Win + Linux versions
-2. Isolated Windows process — DLL used only on Windows hosts via WSL2/dual-boot
-3. Reimplementation — algorithms documented & audited → reimplemented in Rust
-
-Architecture choice: PATH 3 (reimplementation) as primary, PATH 1 as fallback if source obtained.
-Never depend on DLL being directly loadable on Linux — PE binary ≠ native Linux.
-```
+**Endpoints**:
+- POST /mcp/json-rpc - Entrada unica para todas as 12 tools
+- GET /healthz - Health check endpoint
 
 ---
 
-## 5. Contract Versioning
+### Layer 3: RUST COMPUTE WORKER
 
-```
-Internal contract format (JSON Lines, stdio):
+**Responsabilidade**: Computacao nativa em Rust para maximizar performance. Implementa todas as 12 tools (P0-P2) com optimizacao de memoria e benchmarks comparativos.
 
-{"jsonrpc":"2.0","method":"tools/math_evaluate","params":{...},"id":1}
-{"jsonrpc":"2.0","result":{...},"id":1}     │
-       │                                      ↓
-{"jsonrpc":"2.0","error":{...},"id":1}   │  (on failure)
-```
+**Components**:
+- Native performance - Computacao sem overhead de interpretador
+- Memory-optimized - Perfilagem e otimizacao de memoria
+- Benchmarkable - Facilidade de comparacao de performance
 
-**Versioning scheme:**
-- `mimcp-contract-2024-01` — initial release (MCP stdio transport)
-- `mimcp-contract-2024-02` — add Streamable HTTP support
-- `mimcp-contract-2024-03` — add secp256k1 subsystem v1
-- `mimcp-contract-2025-01` — MVP with all P0/P1 tools
-
-**Backward compatibility:** Minor version bumps add tools; major version bumps may change transport. Clients specify accepted contract version.
+**Dependencies**:
+- serde, serde_json para manipulacao de JSON
+- Zod para validacao de inputs
+- Cargo test para testes unitarios
 
 ---
 
-## 6. Error Handling & Safety
+### Layer 4: MATH CORE
 
-### 6.1 Error Codes (JSON-RPC 2.0 compatible)
+**Responsabilidade**: Motores matematicos especificos organizados por nivel de complexidade.
 
-| Code | Meaning | When Triggered |
-|------|---------|----------------|
-| `-32600` | Parse error | Malformed JSON request |
-| `-32601` | Method not found | Unknown tool name |
-| `-32602` | Invalid params | Params schema violation |
-| `-32603` | Internal error | Worker crash, timeout, OOM |
-| `-32001` | Validation failed | Input violates conditions |
-| `-32002` | Verification failed | Verification engine flagged issue |
-| `-32003` | Resource exceeded | Memory/CPU/time limits exceeded |
-| `-32004` | Unsupported operation | secp256k1 requested on Linux without reimplementation |
-
-### 6.2 Safety Gates
-
-| Gate | Description |
-|------|-------------|
-| **Parameter validation** | All inputs checked against formula conditions before execution |
-| **Resource limits** | Worker subprocess killed if memory > limit or time > timeout |
-| **No private key exposure** | Zero secrets in logs, prompts, or returned metadata |
-| **Verification offered, not forced** | Agent chooses whether to verify results |
-| **DLL isolation** | Windows-only binary; Linux uses reimplemented equivalents |
-| **License compliance** | Reimplementation only after license check |
+**Sub-components**:
+- Arithmetic Engine - Operacoes aritmeticas basicas
+- Memory Optimization Engine - Otimizacao de memoria em calculos pesados
+- Formula Engine - Motor de formulas simbolicas (P1)
 
 ---
 
-## 7. Deployment Configuration
+### Layer 5: VALIDATION ENGINE
 
-### 7.1 Docker (reference from spec)
+**Responsabilidade**: Verificacao independente de resultados. Responsavel por garantir que os outputs atendem propriedades esperadas antes de retornar ao cliente.
 
-```yaml
-services:
-  math-intelligence:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    environment:
-      MIMCP_TRANSPORT: streamable-http
-      MIMCP_HOST: 0.0.0.0
-      MIMCP_PORT: 3001
-      MIMCP_LOG_LEVEL: info
-    ports:
-      - "127.0.0.1:3001:3001"
-    restart: unless-stopped
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
-```
+**Components**:
+- Independent check - Verificacao sem dependencia de source original
+- Property verification - Validacao de propriedades matematicas
+- Divergence reports - Relatorios de divergencia entre esperado e obtido
 
-### 7.2 Windows Installation
+---
 
-- Native Rust worker binary (compiled or reimplemented from DLL)
-- MCP server as Windows service or executable
-- DLL used only if pathway 1 (source) or pathway 2 (isolated process) selected
+### Layer 6: REASONING ASSISTANT
 
-### 7.3 Linux Installation
+**Responsabilidade**: apos processamento, assistente de raciocinio formata output estruturado e identifica inconsistencias.
 
-- Native Rust worker (no DLL dependency — reimplemented algorithms)
-- MCP server via npm/pnpm or system package
-- Docker container option available
+**Components**:
+- Structured output - Output padraoizado com metadados
+- Inconsistency anal - Analise de inconsistencias entre inputs e outputs
+- Evidence-based exp - Explicacao baseada em evidencia dos passos
 
-### 7.4 Resource Caps (per worker)
+---
+
+## Roteamento de Tools (P0-P2)
+
+### Nivel P0 - Ferramentas Essenciais (5 tools)
+
+1. math_evaluate - Avaliar expressoes matematicas
+2. math_explain - Explicar conceitos matematicos
+3. math_optimize - Otimizar expressoes algebricas
+4. result_verify - Verificar resultados de calculos
+5. memory_profile - Perfilagem de memoria
+
+### Nivel P1 - Ferramentas Avançadas (5 tools)
+
+6. formula_engine - Motor de formulas simbolicas
+7. symbolic_solver - Solucionador simbolico
+8. calculus_operations - Operacoes de calculo
+9. linear_algebra - Algebra linear
+10. statistical_analysis - Analise estatistica
+
+### Nivel P2 - Ferramentas Opcionais (2 tools)
+
+11. advanced_cryptography - Criptografia avancada
+12. pattern_recognition - Reconhecimento de padroes
+
+---
+
+## Sequencia de Deploy
+
+### Passo 1: Preparacao
+
+- Git history limpa (token removido)
+- Rust toolchain configurada
+- Python environment setup
+- Dockerfile multi-stage pronto
+
+### Passo 2: Build
 
 ```bash
-# Example: launch with caps
-./math-worker \
-  --memory-limit=512MB \
-  --cpu-limit=2000ms \
-  --timeout-ms=30000 \
-  --stdin-stdout
+docker build -t math-intelligence-mcp .
 ```
+
+### Passo 3: Deploy no Render
+
+Aceder dashboard em https://render.com/dashboard com token de acesso.
+Selecionar servico rnd_jSek47xZndoAKnhsjTLJVaxAmr12.
+Clicar "Manual Deploy" -> "Trigger deploy" com:
+- Build Command: `pip install -e .`
+- Start Command: `python -m mimcp`
+
+### Passo 4: Verificacao
+
+MCP acessivel em https://math-intelligence-mcp-[hash].onrender.com
+Endpoint JSON-RPC: POST /mcp/json-rpc
 
 ---
 
-## 8. Evolution Roadmap (from spec)
+## Versionamento
 
-```
-MIMCP 1.0 — Mathematical Core
-  □ Arithmetic, optimization, validation, secp256k1 adapters
-  □ P0/P1 tools implemented and tested
-  □ Windows + Linux + Docker deployment
-  □ OpenCode + Hermes + Kimi integration
+- Versao Atual: 0.1.0
+- Data: 15 de janeiro de 2024
+- Arquitetura: 6 layers with mermaid diagrams
+- Spec: JSON-RPC 2.0
 
-MIMCP 1.5 — Advanced Reasoning
-  □ Demonstrations, hypothesis analysis, reasoning validation
-  □ Complex problem decomposition
-  □ Cross-agent evidence sharing
+---
 
-MIMCP 2.0 — Scientific Computing
-  □ Linear algebra, statistics, numerical optimization
-  □ SWE-bench-style task slices
-  □ Distributed computation
+## Ultima atualizacao
 
-MIMCP 3.0 — Multi-Agent Intelligence
-  □ Controlled result sharing
-  □ Distributed execution
-  □ Agent coordination & consensus
-```
+15 de janeiro de 2024
+
+Versao
+
+0.1.0

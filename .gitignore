@@ -1,0 +1,50 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependency-based
+/node_modules/
+/pnpm-lockfile.lock
+/yarn-lockfile.lock
+/pnpm-debug.log
+
+# diagnostic
+/coverage/
+
+# misc
+/.DS_Store
+/.python_history
+
+# poetry
+.venv
+.env
+
+# docker
+.dockerinit
+
+# misc
+*.orig
+*~
+#*#
+
+# binary
+*.dll
+*.exe
+*.so
+*.dylib
+
+# rust
+/target
+/.cargo
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# typeScript
+*.tsbuildinfo
+.tspkg
+
+# MCP specific
+.mcpe-override
+```
