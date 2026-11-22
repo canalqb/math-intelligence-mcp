@@ -25,9 +25,9 @@ def evaluate_expression(expression: str) -> Dict[str, Any]:
         # Limpeza básica da expressão
         clean_expr = expression.strip()
 
-        # Validar que apenas caracteres matemáticos estão presentes
-        # Apenas dígitos, espaços, operadores básicos e parênteses
-        if not re.match(r'^[\d\s\+\\-\*\/\(\)\.]+$', clean_expr):
+        # Validar caracteres matemáticos permitidos (hífen no final dos colchetes)
+        # Permite dígitos, espaços, operadores, parênteses e identificadores básicos (sqrt, sin, cos, pi, etc.)
+        if not re.match(r'^[a-zA-Z0-9\s+\*/().,^-]+$', clean_expr):
             return {
                 "success": False,
                 "error": "Expressão contém caracteres inválidos",
@@ -37,8 +37,23 @@ def evaluate_expression(expression: str) -> Dict[str, Any]:
         # Substituir ^ por ** para exponenciação Python
         python_expr = clean_expr.replace('^', '**')
 
-        # Avaliar em ambiente seguro (sem builtins)
-        result = eval(python_expr, {"__builtins__": {}}, {})
+        # Dicionário de funções seguras
+        import math
+        safe_env = {
+            "__builtins__": {},
+            "sqrt": math.sqrt,
+            "sin": math.sin,
+            "cos": math.cos,
+            "tan": math.tan,
+            "log": math.log,
+            "exp": math.exp,
+            "abs": abs,
+            "pi": math.pi,
+            "e": math.e,
+        }
+
+        # Avaliar em ambiente seguro
+        result = eval(python_expr, safe_env, {})
 
         return {
             "success": True,

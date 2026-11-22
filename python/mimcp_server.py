@@ -250,8 +250,16 @@ class MCPServer:
                     "id": request_id
                 }
             
-            result = await tool_info["function"](params)
-            return {"jsonrpc": "2.0", "result": result, "id": request_id}
+            func = tool_info["function"]
+            if asyncio.iscoroutinefunction(func):
+                res = await func(params)
+            else:
+                res = func(params)
+
+            if isinstance(res, dict) and "jsonrpc" in res:
+                res["id"] = request_id
+                return res
+            return {"jsonrpc": "2.0", "result": res, "id": request_id}
             
         except Exception as e:
             return {
